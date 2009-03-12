@@ -1,0 +1,972 @@
+#!/usr/bin/perl
+
+# Raxref - Simple, lightweight and fast Cross Referencing
+
+# Like MXR, LXR and LXRng, but with much more KISS
+
+# Author: Dietrich Raisin, info1@raisin.de
+# License: see LICENSE file
+
+use warnings;
+use strict;
+
+use Getopt::Long 2.24 qw( :config auto_help auto_version bundling );
+use File::Copy;
+use DB_File;
+use Data::Dumper;
+
+our $VERSION= '0.1';
+
+# TODO: Doc
+my $have_zlib;
+
+# Zlib not yet NOT IMPLEMENTED
+BEGIN {
+    eval { require Compress::Raw::Zlib; };
+    unless ($@) {
+        $have_zlib= 1;
+        import Compress::Raw::Zlib;
+    }
+}
+
+our $opt_quiet;
+our $opt_conf= "raxref.conf";
+our $opt_all;
+our $opt_outpath;
+
+GetOptions( "quiet|q", "conf|c=s", "all|a" ) or exit;
+
+# TODO: Doc
+my $project_name;
+my $project_title;
+my %ftypes;
+my $output_path;
+
+# Contains: $sources[$source]= $path
+my %sources;
+my $default_source;
+
+# Contains: See read_conf()
+my %sections;
+my @sections;
+
+# Tied DB_File handles for caches
+my %file_cache;
+
+# List of sections to be built
+my %build_sections;
+
+# List of sections that must be re-analyzed because files changed
+my %analyze_sections;
+
+###############################################################################
+#
+#       TOOLS
+#
+###############################################################################
+
+sub mtime {
+    return (stat($_[0]))[9] || 0;
+}
+
+{
+    my $last_text= '';
+
+    sub printx {
+        my $text= join('', @_);
+
+        return if $opt_quiet;
+
+        local $|= 1;
+        print "\r", " " x length($last_text), "\r", $text;
+        $last_text= $text;
+    }
+
+    sub printnl {
+        my $text= join('', @_);
+
+        return if $opt_quiet;
+
+        printx();
+        print "$text\n";
+    }
+}
+
+# DEBUG: For checking memory consumption
+sub die2 {
+    print STDERR "OK!\n"; <STDIN>; die;
+}
+
+# TODO: Implement some sort of warning if file can't be read
+sub read_file {
+    my $file= shift;
+    local $/= undef;
+    my $fin;
+    open $fin, $file or return "";
+    my $result= <$fin>;
+    close $fin;
+    return $result;
+}
+
+sub write_file {
+    my $file= shift;
+    my $content= shift;
+
+    my $fout;
+    open $fout, ">$file" or die "Can't write '$file'";
+    print $fout $content;
+    close $fout;
+}
+
+
+###############################################################################
+#
+#       Read Configuration
+#
+###############################################################################
+
+sub init {
+
+    # Reset all data
+    $project_name= undef;
+    $project_title= undef;
+    %ftypes= ();
+    $output_path= $opt_outpath;
+    %sources= ();
+    $default_source= undef;
+    %sections= ();
+    @sections= ();
+    %build_sections= ();
+    %analyze_sections= ();
+}    
+
+sub read_conf {
+    my $file= shift;
+
+    # Config files to include
+    my %files= ($file => 0);
+
+    my $new_section= sub {
+        $sections{$_[0]}= {
+            title => $_[1],
+            omit => $_[2],
+            includes => [],
+            # TODO: Implement: excludes => [],
+            files => [],
+            tokens => {},
+            index => scalar @sections,
+        };
+        push @sections, $_[0] unless defined $_[3];
+    };
+
+    my $new_ftype= sub {
+        $ftypes{$_[0]}= {
+            title => $_[1],
+            files_re => '\/\/$',   # Never matches
+            keywords => [],
+            tokens_include_re  => '[a-zA-Z][a-zA-Z0-9_]+',
+            tokens_exclude_re  => undef,
+        };
+    };
+
+    my $include;             # "my $sub= sub { $sub->() }" doesn't work in perl 5
+    $include= sub {
+        my $file= shift;
+
+        $files{$file}= 1;    # mark as included
+
+        my $section;
+        my $ftype;
+        my $line_i= 0;
+        my $line;
+
+        my $err= sub {
+            my $message= shift;
+
+            # TODO: Do something saner than exiting, perhaps...
+            printnl("ERROR in $file, line $line_i:\n  $message!\n  The current line is '$line'");
+            return 1;
+        };
+
+        my $warn= sub {
+            my $message= shift;
+            printnl("WARNING in $file, line $line_i:\n  $message!\n The current line is '$line'");
+        };
+
+        my $not_void_context= sub {
+            return $err->("Not valid inside 'section' declaration") if $section;
+            return $err->("Not valid inside 'filetype' declaration") if $ftype;
+            return 0;
+        };
+
+        my $not_section_context= sub {
+            return $err->("'section' declaration missing") unless $section;
+            return $err->("Not valid inside 'filetype' declaration") if $ftype;
+            return 0;
+        };
+
+        my $not_ftype_context= sub {
+            return $err->("'filetype' declaration missing") unless $ftype;
+            return $err->("Not valid inside 'section' declaration") if $section;
+            return 0;
+        };
+
+        open my $fin, $file or return 2;
+        while ($line= <$fin>) {
+            chomp $line;
+            $line_i++;
+
+            # Kill trailing white space and comments. Comments must start at beginning of line
+            # or have one white space before '#' to enable '#' in values.
+            $line =~ s/\s+(?:#.*)?$//;
+            next if $line eq '' || $line =~ /^#/;
+
+            if ($line =~ /^project\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
+                return 1 if $not_void_context->();
+
+                return $err->("Only one 'project' directive allowed. This is the second") if $project_name;
+
+                $project_name= $1;
+                $project_title= $2;
+                next;
+            }
+            if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
+                return 1 if $not_void_context->();
+
+                return $err->("Source already defined") if $sources{$1};
+                return $err->("Source path '$2' is not a directory") unless -d $2;
+
+                $default_source= $1 unless $default_source;
+                $sources{$1}= $2;
+                next;
+            }
+            if ($line =~ /^output_path\s+(.+)$/) {
+                return 1 if $not_void_context->();
+
+                next if $opt_outpath;
+                return $err->("Output path '$1' is not a directory") unless -d $1;
+
+                $output_path= $1;
+                next;
+            }
+            if ($line =~ /^include\s+(.*)$/) {
+                $warn->("File '$1' already included. Ignored."), next if $files{$1};
+
+                return $err->("Error in included file") if $include->($1);
+                next;
+            }
+
+            # TODO: "filetypes c99 perl php html"
+
+            # Project declaration
+
+            if ($line =~ /^section\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
+                $ftype= undef;
+                $section= $1;
+                next if $section eq 'OMIT' || $section eq 'OTHER';
+
+                return $err->("Project already defined") if $sections{$section};
+
+                $new_section->($section, $2 ? $2 : $1, 0);
+                next;
+            }
+            if ($line =~ /^omit$/) {
+                return 1 if $not_section_context->();
+
+                printnl("$file, line $line_i: WARNING! 'omit' not implemented yet!");
+
+                $sections{$section}{omit}= 1;
+                next;
+            }
+            if ($line =~ /^(includes|excludes)\s+(.+)$/) {
+                return 1 if $not_section_context->();
+
+                my $key= $1;
+
+                printnl("$file, line $line_i: WARNING! 'excludes' not implemented yet!") if $key eq 'exclude';
+
+                my ($source, $path)= ($2 =~ /^((.*?):(.*))$/) ? ($2, $3) : ($default_source, $2);
+                return $err->("Unknown source '$source'") unless $sources{$source};
+                return $err->("Path must begin with '/' by convention") unless $path =~ /^\/(.*)/;
+
+                push @{ $sections{$section}{$key} }, [ $source, $1 ];
+                next;
+            }
+
+            # File type declaration
+
+            if ($line =~ /^filetype\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
+                $section= undef;
+                $ftype= $1;
+                next if $ftypes{$ftype};    # Known bug: title ignored
+
+                $new_ftype->($ftype, $2 ? $2 : $1);
+                next;
+            }
+            if ($line =~ /^keywords\s+(.+)$/) {
+                return 1 if $not_ftype_context->();
+
+                push @{ $ftypes{$ftype}{'keywords'} }, split(/\s+/, $1);
+                next;
+            }
+            if ($line =~ /^keywords_from\s+(.+)$/) {
+                return 1 if $not_ftype_context->();
+
+                return $err->("Unknown filetype '$1'") unless $ftypes{$ftype};
+
+                push @{ $ftypes{$ftype}{'keywords'} }, @{ $ftypes{$1}{'keywords'} };
+                next;
+            }
+            if ($line =~ /^(files_re|tokens_exclude_re|tokens_include_re)\s+(.+)$/) {
+                return 1 if $not_ftype_context->();
+
+                $ftypes{$ftype}{$1}= $2;
+                next;
+            }
+
+            return $err->("Syntax error");
+        }
+        close $fin;
+
+        return 0;
+    };
+
+    init();
+
+    $new_section->('OMIT',   'Omitted paths', 1, 1);
+    $new_section->('OTHER',  'Other',         0, 1);
+
+    my $result= $include->($file);
+    if ($result) {
+        printnl("Can't read config file '$file'") if $result == 2;
+        return 1;
+    }
+
+    unless ($project_name) {
+        printnl("ERROR in $file:\n  A 'project' directive is missing. Please add a 'project <name> <title>' to your config file!");
+        return 1;
+    }
+
+    $sections{'OTHER'}{'index'}= scalar @sections; 
+    push @sections, 'OTHER', 'OMIT';
+
+    for (keys %ftypes) {
+        $ftypes{$_}{'tokens_keywords_re'}= join('|', @{ $ftypes{$_}{'keywords'} });
+        delete $ftypes{$_}{'keywords'};  # Remove from memory
+    }
+
+    return 0;
+}
+
+
+###############################################################################
+#
+#       Collect Files
+#
+###############################################################################
+
+# Implements an directory reader as Iterator
+# Read "Higher Order Perl" by MJ Dominus
+sub _dir_walk {
+    my @queue = shift;
+    my $want_dirs= shift || 0;
+    return sub {
+	while (@queue) {
+            my $file = shift @queue;
+	    if (-d $file) {
+		next if $file =~ /\/\.[^\/]+$/;  # Skip dot directories (.svn, .git, ...)
+
+		opendir my $dh, $file or next;
+		my @newfiles = grep { $_ ne "." && $_ ne ".." } readdir $dh;
+
+                # Insert sorted, so that directories come first
+		unshift @queue, map "$file/$_", sort {
+                    -d "$file/$a"
+                        ? (-d "$file/$b" ? $a cmp $b : -1)
+                        : (-d "$file/$b" ? 1 : $a cmp $b)
+                } @newfiles;
+                next unless $want_dirs;
+	    }
+            return $file;
+	}
+    };
+}
+
+sub collect_files {
+
+    printx("Collecting files: running...");
+
+    my %filter;
+    map { $filter{$_}= [] } keys %sources;
+
+    # Collect path filters hashed by source
+    for my $section (@sections) {
+        my $includes= $sections{$section}{'includes'};
+        for my $include (@$includes) {
+            my $count= 0;
+            $count++ while $include->[1] =~ /\//g;
+            push @{ $filter{$include->[0]} }, [
+                $section,                   # 0
+                $include->[0],              # 1 source, unused
+                $include->[1] . '/',        # 2 path
+                $count,                     # 3
+                length($include->[1]) + 1   # 4 length(path)
+            ];
+        }
+    }
+
+    my $files_count= 0;
+
+    # Collect files and assign them to the different sections
+    for my $source (keys %filter) {
+        my @filter= sort {
+            $b->[3] <=> $a->[3] || $a->[2] cmp $b->[2]
+        } @{ $filter{$source} };
+
+        my $path= $sources{$source};
+        my $it= _dir_walk($path);
+        my $qm_path= quotemeta($path);
+        my $path_re= qr/^$qm_path\/(.*)/;
+        while (my $full_file= $it->()) {
+            for my $ftype (keys %ftypes) {
+                next unless $full_file =~ /$ftypes{$ftype}{'files_re'}/;
+
+                $full_file =~ $path_re or die "Hmm. I found the file '$full_file' which doesn't start with '$path'. Giving up *sigh*...";
+                my $file= $1;
+
+                my $section= "OTHER";
+                for my $filter (@filter) {
+                    next unless substr($file, 0, $filter->[4]) eq $filter->[2];
+
+                    $section= $filter->[0];
+                    last;
+                }
+                next if $section eq 'OMIT';
+
+                my $file_key= "$source:$file";
+                my $file_no= int($file_cache{"$file_key:id"} || 0);
+    
+                if (!$file_no) {
+                    $file_no= int($file_cache{'.count'} || 0);
+                    $file_cache{"$file_key:id"}= $file_no;
+                    $file_cache{'.count'}= $file_no + 1;
+
+                    # New file, must re-analyze Project:
+                    $analyze_sections{$section}= 1;
+                }
+
+                my $mtime= mtime($full_file);
+                if ($mtime != ($file_cache{"$file_key:mtime"} || 0)) {
+                    $file_cache{"$file_key:mtime"}= $mtime;
+
+                    # Changed file, must re-analyze Project:
+                    $analyze_sections{$section}= 2;
+                }
+
+                # TODO: Check file modified date
+                
+                push @{ $sections{$section}{'files'} }, [ $ftype, $source, $file, $file_no, $section ];
+                $files_count++;
+	        last;
+            }
+        }
+    }
+
+    printx();
+    printnl("Collecting files: finished, found $files_count files");
+}
+
+
+###############################################################################
+#
+#       Analyze Files
+#
+###############################################################################
+
+sub _analyze_file {
+    my $section= shift;
+    my $fileinfo= shift;
+
+    my $ftype= $fileinfo->[0];
+    my $source= $fileinfo->[1];
+    my $file= $fileinfo->[2];
+    my $file_no= $fileinfo->[3];
+
+    printx("Analysing section '$section': reading file '$file'");
+
+    my $tokens= $sections{$section}{'tokens'};
+
+    my $full_file= $sources{$source} . '/' . $file;
+
+    my $content= read_file($full_file);
+    my $include_re= $ftypes{$ftype}{'tokens_include_re'};
+    $include_re=  qr/\b($include_re)\b/; 
+
+    my $exclude_re=  $ftypes{$ftype}{'tokens_exclude_re'};
+    my $keywords_re= $ftypes{$ftype}{'tokens_keywords_re'};
+    $exclude_re= $exclude_re ? ($keywords_re ? $exclude_re . '|' . $keywords_re : $exclude_re) : $keywords_re;
+    $exclude_re= $exclude_re eq '' ? undef : qr/^($exclude_re)$/;
+    
+    my $line_no= 0;
+    for my $line (split(/\n\r?/, $content)) {
+	$line_no++;
+
+        while ($line =~ /$include_re/g) {
+            next if defined $exclude_re && $1 =~ $exclude_re;
+
+            push @{ $tokens->{$1} }, "$file_no,$line_no";
+        }
+    }
+
+    # print Dumper(\$tokens); die;
+}
+
+sub analyze_files {
+
+    printx("Analysing sections: running...");
+
+    for my $section (@sections) {
+
+        if ($analyze_sections{$section}) {
+            printnl("New or modified files. Analysis forced!");
+            $build_sections{$section}= 2;
+        }
+
+        # Try to read cached tokens, if not forced by command line
+        elsif (!defined $build_sections{$section}) {
+            my $cached= read_file("cache/$project_name-$section.tokens");
+            if ($cached) {
+                my $tokens;
+                eval $cached;
+                $sections{$section}{'tokens'}= $tokens;
+                next;
+            }
+
+            printnl("No data for section '$section'. Analysis forced!");
+            $build_sections{$section}= 1;
+        }
+
+        for (@{ $sections{$section}{'files'} }) {
+            _analyze_file($section, $_);
+        }
+        printnl("Analysing section '$section': finished");
+
+        # Convert arrays to strings to greatly reduce memory consumption
+        my $tokens= $sections{$section}{'tokens'};
+        for (keys %$tokens) {
+            $tokens->{$_}= join(':', @{ $tokens->{$_} });
+        }
+
+        my $dumper= Data::Dumper->new([ $tokens ], [ 'tokens' ]);
+        $dumper->Indent(0);
+
+        write_file("cache/$project_name-$section.tokens", $dumper->Dump());
+    }
+    printnl("Analysing sections: finished");
+}
+
+
+###############################################################################
+#
+#       Generate "data.js"
+#
+###############################################################################
+
+sub _sections_as_js {
+    return "var sections=[" . join(",\n", map {
+        "['$_','" . $sections{$_}{'title'} . "']"
+    } grep { $_ ne 'OMIT' } @sections) . "];\n";
+}
+
+sub _files_as_js {
+    my $files= shift;
+
+    return "var files=[" . join(",\n", map {
+        $_ ? "['" . $_->[0] . "','" . $_->[1] . "','" . $_->[2] . "'," . $sections{$_->[4]}{'index'} . "]" : 'null'
+    } @$files) . "];\n";
+}
+
+# Remove tokens that appear too often. Use median to decide.
+sub _cleanup_tokens {
+    my $tokens= shift;
+
+    printx("Cleaning tokens: running...");
+
+    my %ref_count;
+    my %median;
+    my $token_count= 0;
+    while (my ($token, $refs)= each %$tokens) {
+        my $ref_count= 1;
+        $ref_count++ while $refs =~ /:/g;
+        $ref_count{$token}= $ref_count;
+        $median{$ref_count}= 0;
+        $token_count++;
+    }
+    my @median= sort { $a <=> $b } keys %median;
+    return unless @median;
+    
+    my $max_ref_count= $median[scalar @median / 2] * 6;
+
+    # print STDERR join(",", @median);
+    # print STDERR "Median: $max_ref_count\n";
+
+    # my @removed_tokens= ();
+    my $removed_count= 0;
+    while (my ($token, $ref_count)= each %ref_count) {
+        next if $ref_count >= 2 && $ref_count < $max_ref_count;
+
+	delete $tokens->{$token};
+        $removed_count++;
+        # push @removed_tokens, $token;
+
+        for my $section (@sections) {
+            my $tokens = $sections{$section}{'tokens'};
+            delete $tokens->{$token}
+        }
+
+    }
+
+    printnl("Cleaning tokens: finished, removed $removed_count of $token_count tokens");
+}
+
+sub _tokens_as_js {
+    my $tokens= shift;
+
+    my @xrefs;
+    for my $token (sort keys %$tokens) {
+	my @refs= split(/:/, $tokens->{$token});
+	my @xref;
+	my $last_file_no= 0;
+	my $last_line_no= 0;
+        
+	for my $ref (@refs) {
+	    my ($file_no, $line_no)= split(/,/, $ref);
+	    if ($file_no != $last_file_no) {
+		push @xref, 'f' . ($file_no - $last_file_no);
+		$last_file_no= $file_no;
+	        $last_line_no= 0;
+	    }
+            else {
+                next if $line_no == $last_line_no;
+            }
+	    push @xref, ($line_no - $last_line_no);
+	    $last_line_no= $line_no;
+	}
+
+	push @xrefs, "'$token':'" . join(',', @xref) . "'\n";
+    }
+    return "var tokens={" . join(',', @xrefs) . "};\n";
+}
+
+sub write_data_js {
+
+    my @all_files;
+    my %all_tokens;
+
+    for my $section (@sections) {
+        next if $section eq 'OMIT';
+
+        my $files = $sections{$section}{'files'};
+        for my $fileinfo (@$files) {
+            $all_files[$fileinfo->[3]]= $fileinfo;
+        }
+
+        my $tokens = $sections{$section}{'tokens'};
+        for my $token (keys %$tokens) {
+            $all_tokens{$token}= defined $all_tokens{$token}
+                                    ? $all_tokens{$token} . ':' . $tokens->{$token}
+                                    : $tokens->{$token};
+        }
+    }
+
+    _cleanup_tokens(\%all_tokens);
+
+    printx("Writing 'data.js': running...");
+
+    mkdir("$output_path/raxref-$project_name");
+
+    my $fout;
+    open $fout, ">$output_path/raxref-$project_name/data.js" or die "Can't write '$output_path/raxref-$project_name/data.js'";
+    print $fout "// Generated file. Changes useless\n";
+    print $fout "var files_path='raxref-$project_name';\n";
+    print $fout "var project_name='$project_name';\n";
+    (my $prtitle_html= $project_title) =~ s/'/\\'/g;
+    print $fout "var project_title='$prtitle_html';\n";
+    print $fout _sections_as_js();
+    print $fout _files_as_js(\@all_files);
+    print $fout _tokens_as_js(\%all_tokens);
+    close $fout;
+
+    printnl("Writing 'data.js': finished");
+}
+
+
+###############################################################################
+#
+#       Deploy required files
+#
+###############################################################################
+
+sub deploy_requirements {
+
+    my $copy= sub {
+        my $source= shift;
+        my $target= shift || $source;
+
+        $source= "deploy/$source";
+        $target= "$output_path/$target";
+        return if mtime($source) <= mtime($target);
+        
+        printx("Deploying requirements: $source -> $target");
+        copy($source, $target);
+    };
+
+    printx("Deploying requirements: running...");
+
+    # Take into template and build main HTML file
+    my $template= read_file("deploy/raxref-template.html") or die "Can't read 'deploy/raxref.html'";
+    $template =~ s/\{\{PROJECT_FILES_PATH\}\}/raxref-$project_name/;
+    write_file("$output_path/raxref-$project_name.html", $template);
+
+    # TODO: Make a link to index.html optional
+    if (0 && !-e "$output_path/input.html") {
+        eval { symlink("raxref-$project_name.html", "$output_path/index.html"); 1 };
+    }
+    $copy->("raxref.js");
+    $copy->("raxref-all.css");
+    $copy->("jquery-1.3.2.min.js", "jquery.js");
+    $copy->("jquery.color-1.0.js", "jquery.color.js");
+    $copy->("jquery.scrollTo-1.4.0.min.js", "jquery.scrollTo.js");
+
+    printnl("Deploying requirements: finished");
+}
+
+
+###############################################################################
+#
+#       Generate HTML Files
+#
+###############################################################################
+
+sub write_files {
+
+    my %ftype_keywords_re;
+
+    my $write_file= sub {
+        my $section= shift;
+    
+        my $files = $sections{$section}{'files'};
+        my $tokens = $sections{$section}{'tokens'};
+
+        # Find all Tokens that contain word breaks. This happens with perl code (::).
+        # Because the token loopup further on depends on tokens NOT containing
+        # word breaks, this case must be treated specially.
+        #
+        # We build a RegEx that matches either these tokens or <\d+>. Later we will
+        # temporarily replace the occurancies by <$counter++> and memorize all found
+        # occurancies in @repl[$counter]. After were finished the replacements are undone.
+        my @special_tokens;
+        for (keys %$tokens) {
+            push @special_tokens, quotemeta($_) if /\S\b\S/;
+        }
+        my $special_tokens= join('|', @special_tokens);
+        my $special_tokens_re= qr/\b(?:<\d+>|$special_tokens)/;
+        my $special_tokens_temp_re1= qr/^<\d+>$/;
+        my $special_tokens_temp_re2= qr/<(\d+)>/;
+
+        my $file_i= 0;
+        for my $fileinfo (@$files) {
+            my ($ftype, $source, $file, $file_no)= @$fileinfo;
+            my $infile= $sources{$source} . '/' . $file;
+            my $outfile= "$output_path/raxref-$project_name/file$file_no.html";
+
+            mkdir("$output_path/raxref-$project_name");
+
+            my $extra= '';
+            if (-e $outfile) {
+                next unless defined $build_sections{$section};
+
+                $extra= ' (forced)';
+            }
+            else {
+                $extra= ' (missing)';
+            }
+            
+            printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
+
+            my $code= read_file($infile);
+
+            # Replace &, < and > because they have a meaning in HTML.
+            # Use the numeric codes, 'gt', 'lt' or 'amp' may be keywords and would be replaced in the next step.
+            $code =~ s/&/&#38;/g;
+            $code =~ s/</&#60;/g;
+            $code =~ s/>/&#62;/g;
+
+            my $keywords_re= $ftypes{$ftype}{'tokens_keywords_re'};
+            if ($keywords_re) {
+                if (!defined $ftype_keywords_re{$ftype}) {
+                    $ftype_keywords_re{$ftype}= qr/\b($keywords_re)\b/;
+                }
+
+                # Substitute keywords first, otherwise 'class' inside of <b>-tag will match.
+                $code =~ s{$ftype_keywords_re{$ftype}}{<i>$1</i>}g;
+            }
+
+            # $code= "abc<17>def<8>ghij Digest::SHA1 klm<4>nopq";
+
+            # Treat special tokens with RegEx
+            my @repl;
+            my $repl_count= -1;
+
+            $code =~ s/$special_tokens_re/
+                $repl[++$repl_count]= ($& =~ $special_tokens_temp_re1 ? $& : "<b class='_$&'>$&<\/b>");
+                "<$repl_count>"
+            /gex if @special_tokens;
+
+            # Faster than a RegEx:
+            my @words= split(/\b/, $code);
+            for (@words) {
+
+                # Possible optimisation: check for keywords here in a similar manner
+                # Probably needed for PHP. Didn't test yet...
+
+                $_= "<b class='_$_'>$_</b>", next if defined $tokens->{$_};
+            }
+            $code= join('', @words);
+
+            # Undo special Tokens temporay replacement
+            $code =~ s/$special_tokens_temp_re2/$repl[$1]/ge;
+
+            my $pod_cmds= "(head1|head2|head3|head4|over|item|back|pod|begin|end|for)";
+            my @result;
+            my $class= "";
+            my $in_doc= 0;
+            for (split(/\n/, $code)) {
+                if (/^=(?:$pod_cmds\b|<b class='_$pod_cmds')/) {
+                    $class= " class='doc doc-" . ($1 || $2) . ($in_doc ? "" : " doc-start") . "'";
+                    $_= "<span class='doc-i'>$_</span>";
+                    $in_doc= 1;
+                }
+                elsif (/^=(?:cut\b|<b class='_cut')/) {
+                    $class= " class='doc doc-end'";
+                    $in_doc= 0;
+                }
+                elsif ($in_doc) {
+                    $class= " class='doc'";
+                }
+                else {
+                    $class= "";
+                }
+                push @result, "<li$class>$_</li>";
+            }
+
+            $code= "<!-- $source" . ":$file --><div class='code'>\n<ol>" . join("\n", @result) . "</ol>\n</div>";
+
+            write_file($outfile, $code);
+            $file_i++;
+        }
+        if ($file_i || defined $build_sections{$section}) {
+            printnl("Writing files for section '$section': finished");
+        }
+    };
+
+    for (@sections) {
+        $write_file->($_) unless $_ eq 'OMIT';
+    }
+    printnl("Writing files: finished");
+}
+
+
+###############################################################################
+#
+#       Main
+#
+###############################################################################
+
+printnl("Raxref ", $VERSION, " by Dietrich Raisin\n");
+
+read_conf($opt_conf) and exit 1;
+
+$output_path= $opt_outpath || "output" unless $output_path;
+unless (-d $output_path) {
+    printnl("Output path '$output_path' is not a directory");
+    exit 1;
+}
+
+printnl("Updating your project '$project_title'");
+
+tie %file_cache, 'DB_File', "cache/$project_name-files.db";
+
+if ($opt_all) {
+    %file_cache= ();                       # Remove file cache
+    $build_sections{$_}= 0 for @sections;  # Rebuild all
+}
+
+# Build lookup table
+for (@ARGV) {
+    unless (defined $sections{$_}) {
+        print STDERR "There is no section named '$_' in '$opt_conf'!\n";
+        print STDERR "Possible values are: '" . join("', '", @sections) . "'.\n";
+        exit 1;
+    }
+    $build_sections{$_}= 0;
+}
+
+collect_files();
+analyze_files();
+write_data_js();
+deploy_requirements();
+write_files();
+
+printnl("\nYour Raxref web application is now ready in '$output_path'!\n");
+
+__END__
+
+=head1 NAME
+
+Raxref - Simple, lightweight and fast Cross Referencing
+        
+=head1 SYNOPSIS
+
+raxref [options] [section ...]
+                
+ Options:
+    --help              brief help message
+    --conf file         alternate config file
+    --all               rebuild all sections
+    --quiet             omit console output
+    --outpath           output path (overrides config file directive)
+
+Use "perldoc raxref" for more information. Man page to come...
+
+TODO: WRITE DOC!!!
+            
+=head1 OPTIONS
+                                   
+=over 8
+                                       
+=item B<-help>
+                                   
+Print a brief help message and exits.
+                                                   
+=back
+
+Calling raxref builds the Cross Reference JavaScript Application. Only the missing parts
+are built.
+
+The default config file is B<raxref.conf>.
+
+To force a build ANGEBEN the section on the command line, or '--all' to rebuild all.
+The latter will also kill the caches.
+
+=head1 DESCRIPTION
+                                                                   
+B<Raxref> was originally written to build a browsable cross reference for the
+parrot project.
+
+=head1 SHAMELESS PLUG
+
+If you like this product, you may also like rabak (http://www.raisin.de/rabak),
+a powerful, rsync based backup solution.
+                                                                           
+=cut

@@ -1,0 +1,37 @@
+
+Raxref - Simple, lightweight and fast Cross Referencing
+
+This is the first version, but it works very good.
+And it's REALLY REALLY simple to use, I swear!
+
+.
+.
+TBD
+.
+.
+
+Stuff:
+
+- Only tested with FF3 3.0.7 and Safari 3.2.2 !!!
+
+- Raxref is written in Perl 5 and JavaScript
+- Made to understand the Parrot Project
+- Makes use of some CSS 2 features that most browsers don't support
+
+TODO by priority:
+- JS: Add quick search
+- CSS: Finish color coding
+- Add a simple possibility to build a rexref web app without a conf file
+  e.g. raxref --source some/path (auto-include conf/std.conf)
+
+- JS: Add "new source window", "new xref window"
+- Add Project Meta Info e.g 'meta author Blah', 'meta url parrot.org'...
+
+TODO misc, unsorted:
+- Add Project description
+- HTML Encoding
+- Tab expansion: Use MXR code
+- Analyse Shebang for file type detection
+- Force analysis if conf file changes
+- Optimize File scanning for PHP
+- Fix the FIXMEs

@@ -1,0 +1,236 @@
+
+/* Standard CSS file for Raxref */
+
+/* Author: Dietrich Raisin, info1@raisin.de */
+/* License: see LICENSE file */
+
+html {
+    /*  For "4.01 Transitional"++, body inherits from html :-/.
+        As far as I understand, html[height] shouldn't even exist, but
+        apparently it does (at least in FF3) and it's default value is auto.
+    */
+    height: 100%;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+
+    x-line-height: 100%;
+}
+
+/*  Switch to sane box model. Without this, AFAIK there is NO way to work
+    with 100% height for layout AND using paddings + margins simultaniously.
+*/
+div {
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+
+    -moz-border-radius: 0.25em;
+    -webkit-border-radius: 0.25em;
+}
+
+#slots {
+    height: 100%;
+    white-space: nowrap;
+}
+
+.slot {
+    display: inline-block;
+    vertical-align: top;        /* Without: strange behaviour of Safari */
+    width: 40%;
+    height: 100%;
+    border: 2px solid #FFF;
+}
+
+.slot-i {
+    height: 100%;
+    overflow: hidden;           /* Safari needs this, otherwise a vertical slider will be shown */
+}
+
+
+/*****************************************************************************
+    Slot type specific stuff
+ *****************************************************************************/
+
+/* #6994E3 #2866D7 #1C4796 #0A1936 #005AFF project  blue */
+/* #69E3B8 #28D799 #1C966B #0A3626 #00FFA5 section  cyan */
+/* #94E369 #66D728 #47961C #19360A #5AFF00 file     lime green */
+/* #E3B869 #D79928 #966B1C #36260A #FFA500 xref     orange */
+/* #B869E3 #9928D7 #6B1C96 #260A36 #A500FF unused   violet */
+/* #E36994 #D72866 #961C47 #360A19 #FF005A unused   pink */
+/* #A6A6A6 #808080 #595959 #202020 #808080 unused   grey */
+
+.slot.project  .col0bg { background-color: #6994E3; }
+.slot.section  .col0bg { background-color: #69E3B8; }
+.slot.file     .col0bg { background-color: #94E369; }
+.slot.xref     .col0bg { background-color: #E3B869; }
+
+.slot.project  .col2border { border-color: #1C4796 !important; }
+.slot.section  .col2border { border-color: #1C966B !important; }
+.slot.file     .col2border { border-color: #47961C !important; }
+.slot.xref     .col2border { border-color: #966B1C !important; }
+
+.slot.project  h1 { color: #0A1936; }
+.slot.section  h1 { color: #0A3626; }
+.slot.file     h1 { color: #19360A; }
+.slot.xref     h1 { color: #36260A; }
+
+.slot b {
+    font-weight: normal;
+
+    /* FIXME: color */
+    background-color: #E4E4E4;
+    cursor: pointer;
+}
+
+.slot b.over {
+
+    /* FIXME: color */
+    background-color: #F66 !important;
+}
+
+.slot.project  { background-color: #2866D7; }
+.slot.section  { background-color: #28D799; }
+.slot.file     { background-color: #66D728; }
+.slot.xref     { background-color: #D79928; }
+
+.slot.project  { width: 12%; }
+.slot.section  { width: 16%; }
+.slot.file     { width: 38%; }
+.slot.xref     { width: 34%; }
+
+.slot .hover {
+
+    /* FIXME: color */
+    background-color: #BBF !important;
+}
+
+.slot h1 {
+    font-size: 123%;
+    font-weight: normal;
+
+    /* FIXME: color */
+    border-bottom: 2px solid #CCC;
+    margin-bottom: 0.25em;
+}
+
+/* FIXME: .slot.xref */
+
+.body .xref ol, .body .section ol {
+    padding: 0;
+}
+
+.body .xref li, .body .section ol {
+    list-style-position: inside;
+    list-style-type: none;
+}
+
+/*****************************************************************************
+    Head
+ *****************************************************************************/
+
+.head-c {
+    padding: 1em;
+    x-width: 100%;
+    height: 3.5em;
+    overflow: hidden;
+}
+
+.head {
+    font-size: 123%;
+}
+
+/*****************************************************************************
+    Body
+ *****************************************************************************/
+
+.body-c {
+    height: 100%;
+    position: relative;
+    top: -3.5em;
+    padding: 0.5em;
+    padding-top: 4em;
+    border: 2px solid #000;
+}
+
+.body {
+    background-color: #FFF;
+    padding: 0.5em;
+    height: 100%;
+    overflow: auto;
+    border: 2px solid #000;
+}
+
+/*****************************************************************************
+    Code
+ *****************************************************************************/
+
+.code {
+    line-height: 110%;
+}
+
+.code li {
+    font-family: Consolas, "Lucida Console", Monaco, "DejaVu Sans Mono", "Bitstream Vera Sans Mono", monospace;
+    white-space: pre;
+}
+
+.code .doc {
+    x-background-color: #FC7;
+    border-left: 0.5em solid #FC7;
+    padding-left: 1em;
+    x-border-right: 0.5em solid #FC7;
+    x-padding-right: 1em;
+}
+
+.code .doc-start {
+    padding-top: 0.5em;
+    margin-top: 0.5em;
+    border-top: 0.5em solid #FC7;
+}
+
+.code .doc-head1,
+.code .doc-head2,
+.code .doc-item {
+    line-height: 146%;
+}
+
+.code .doc-head1 .doc-i,
+.code .doc-head2 .doc-i,
+.code .doc-item .doc-i {
+    font-size: 118%;
+    font-weight: bold;
+}
+
+.code .doc-end {
+    padding-bottom: 0.5em;
+    margin-bottom: 0.5em;
+    border-bottom: 0.5em solid #FC7;
+}
+
+.code i,
+.code i b {
+    font-weight: bold;
+    font-style: normal;
+    color: #600;
+}
+
+.code li .line_no {
+    background-color: #E4E4E4;
+    display: block;
+    float: left;
+    width: 4em;
+    text-align: right;
+    margin-right: 1em;
+    cursor: pointer;
+}
+
+.code li .loading {
+    color: #888;
+}
+
+/*****************************************************************************
+    EOF
+ *****************************************************************************/

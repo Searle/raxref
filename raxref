@@ -596,28 +596,22 @@ sub _cleanup_tokens {
     my %median;
     my $token_count= 0;
     while (my ($token, $refs)= each %$tokens) {
-        my $ref_count= 1;
-        $ref_count++ while $refs =~ /:/g;
+        my $ref_count= ($refs =~ tr/://) + 1;
         $ref_count{$token}= $ref_count;
         $median{$ref_count}= 0;
         $token_count++;
     }
     my @median= sort { $a <=> $b } keys %median;
     return unless @median;
-    
+
     my $max_ref_count= $median[scalar @median / 2] * 6;
 
-    # print STDERR join(",", @median);
-    # print STDERR "Median: $max_ref_count\n";
-
-    # my @removed_tokens= ();
     my $removed_count= 0;
     while (my ($token, $ref_count)= each %ref_count) {
         next if $ref_count >= 2 && $ref_count < $max_ref_count;
 
 	delete $tokens->{$token};
         $removed_count++;
-        # push @removed_tokens, $token;
 
         for my $section (@sections) {
             my $tokens = $sections{$section}{'tokens'};
@@ -625,7 +619,6 @@ sub _cleanup_tokens {
         }
 
     }
-
     printnl("Cleaning tokens: finished, removed $removed_count of $token_count tokens");
 }
 

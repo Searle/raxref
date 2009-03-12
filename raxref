@@ -34,7 +34,7 @@ our $opt_conf= "raxref.conf";
 our $opt_all;
 our $opt_outpath;
 
-GetOptions( "quiet|q", "conf|c=s", "all|a" ) or exit;
+GetOptions( "quiet|q", "conf|c=s", "all|a", "outpath|o=s" ) or exit;
 
 # TODO: Doc
 my $project_name;
@@ -888,6 +888,9 @@ printnl("Raxref ", $VERSION, " by Dietrich Raisin\n");
 read_conf($opt_conf) and exit 1;
 
 $output_path= $opt_outpath || "output" unless $output_path;
+
+# die $output_path;
+
 unless (-d $output_path) {
     printnl("Output path '$output_path' is not a directory");
     exit 1;

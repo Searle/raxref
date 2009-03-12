@@ -23,9 +23,9 @@ jQuery(function($) {
 
     Slot.nextId= 0;
 
-    var slotX=  new Slot('xref');
-    var slotF=  new Slot('file');
-    var slotS=  new Slot('section');
+    var slotX= new Slot('xref');
+    var slotF= new Slot('file');
+    var slotS= new Slot('section');
     var slotP= new Slot('project');
 
     function showText(slot, titleHtml, bodyHtml, omitScrollToTop) {

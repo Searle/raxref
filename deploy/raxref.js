@@ -13,7 +13,7 @@ jQuery(function($) {
 
     var Slot= function(type) {
 
-        // BTW: This is the most packer-friendly way writing JS Classes I found:
+            // BTW: This is the most packer-friendly way writing JS Classes I found:
         // Write everything as private code at make the assignments to the
         // properties at the very end. Both yuicomressor and dojocompressor are
         // very happy with this style. Other libraries mess this up terribly,
@@ -36,7 +36,7 @@ jQuery(function($) {
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {
             $('#slot' + id + ' .head').html(titleHtml);
-            this.activate();
+            activate();
             var $body= $('#slot' + id + ' .body').html(bodyHtml);
             if (!omitScrollToTop) $body.scrollTo(0);
             return $body;
@@ -78,7 +78,7 @@ jQuery(function($) {
                 }
                 var xref= xrefList.shift();
                 jQuery.ajax({
-                    url: files_path + "/file" + xref.file_no + ".html",
+                    url: files_path + "/file" + xref.file_no + ".html?" + Math.random(),
                     dataType: "html",
                     complete: function(res, status) {
 
@@ -124,8 +124,8 @@ jQuery(function($) {
                 result.push("<h1>" + htmlize_filename(file(xref.file_no)[2]) + "</h1><ol>");
                 for (var line_no_i in xref.line_nos) {
                     var line_no= xref.line_nos[line_no_i];
-                    var id= 'q' + id + '-' + xref.file_no + '-' + line_no;
-                    var line= '<span id="' + id + '"><span class="loading">Loading</span></span>';
+                    var spanId= 'q' + id + '-' + xref.file_no + '-' + line_no;
+                    var line= '<span id="' + spanId + '"><span class="loading">Loading</span></span>';
                     result.push("<li><span class='line_no' rel='" + xref.file_no + ':' + line_no + "'>" + line_no + ".</span>" + line + "</li>");
                 }
                 result.push("</ol>");
@@ -144,15 +144,17 @@ jQuery(function($) {
                             // console.log(lines);
                             console.log(lines.length, line_no);
                         }
-                        
-                        var line= line_no >= lines.length
-                            ? line_no + " > " + lines.length + " ???"
-                            : lines[line_no].substring(4, lines[line_no].length - 5); // remove <li> and </li>
 
+                        var line;
+                        if (line_no >= lines.length) {
+                            line= line_no + " > " + lines.length + " ???";
+                        }
+                        else {
+                            line= lines[line_no].replace(/^<li[^>]+>/, '').replace(/<\/li>$/, '');      // remove <li> and </li>
+                        }
 
-
-                        var id= 'q' + id + '-' + xref.file_no + '-' + line_no;
-                        $('#' + id).html(line);
+                        var spanId= 'q' + id + '-' + xref.file_no + '-' + line_no;
+                        $('#' + spanId).html(line);
                     }
                 },
                 function() {
@@ -222,7 +224,7 @@ jQuery(function($) {
             }
             if (last_path) result.push("</ol>");
 
-            this.showText("Section '" + section[1] + "'", "<div class='section'>" + result.join("") + "</div>");
+            showText("Section '" + section[1] + "'", "<div class='section'>" + result.join("") + "</div>");
         };
 
         this.id= id;    // read only
@@ -242,7 +244,7 @@ jQuery(function($) {
     var slotS= new Slot('section');
     var slotP= new Slot('project');
 
-    showProject(slotP);
+    slotP.showProject(  );
 
     // showFile(slotF, 120);
     // load: function( url, params, callback )
@@ -292,7 +294,7 @@ jQuery(function($) {
             // TODO: Visited link. Neat idea, but have to work this one out...
             $(this).css('background-color', 'yellow');
 
-            showXref($(this).text());
+            slotX.showXref($(this).text());
         })
     ;
 

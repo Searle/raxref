@@ -630,6 +630,47 @@ sub _cleanup_tokens {
     printnl("Cleaning tokens: finished, removed $removed_count of $token_count tokens");
 }
 
+sub _tokens_as_js_new {
+    my $tokens= shift;
+
+    my @xrefs;
+    for my $token (sort keys %$tokens) {
+
+print "****" . Dumper($tokens->{$token}); 
+
+	my @refs= sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] }
+                    map { [ split(/,/) ] }
+                    split(/:/, $tokens->{$token});
+        
+print Dumper(@refs); 
+	my @xref;
+	my $last_file_no= 0;
+	my $last_line_no= 0;
+        
+	for my $ref (@refs) {
+	    my ($file_no, $line_no)= ($ref->[0], $ref->[1]);
+	    if ($file_no != $last_file_no) {
+		push @xref, ($file_no - $last_file_no) * 2;
+		$last_file_no= $file_no;
+	        $last_line_no= 0;
+	    }
+            else {
+                next if $line_no == $last_line_no;
+            }
+	    push @xref, ($line_no - $last_line_no) * 2 + 1;
+	    $last_line_no= $line_no;
+	}
+
+print Dumper(@xref); 
+
+next;
+	push @xrefs, "'$token':'" . join(',', @xref) . "'\n";
+    }
+
+die;
+    return "var tokens={" . join(',', @xrefs) . "};\n";
+}
+
 sub _tokens_as_js {
     my $tokens= shift;
 

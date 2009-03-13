@@ -6,7 +6,7 @@
 
 // Fall back if Firebug is not present
 if (typeof console == 'undefined') {
-    var console= { log: function() {} };
+    var console= { log: function() {}, warn: function() {}, error: function() {} };
 }
 
 jQuery(function($) {
@@ -46,23 +46,35 @@ jQuery(function($) {
             var rawXref= tokens[token];
             if (!rawXref) return null;
 
-            var rawXrefs= rawXref.split(',');
             var xrefList= [];
             var xref= { file_no: 0, line_nos: [] };
             var last_file_no= 0;
             var last_line_no= 0;
-            for (var rawXrefs_i in rawXrefs) {
-                var item= rawXrefs[rawXrefs_i];
-                if (item.substr(0, 1) == 'f') {
-                    last_file_no += parseInt(item.substr(1), 10);
+            var v= 0;
+            var rawXref_length= rawXref.length;
+            for (var i= 0; i < rawXref_length; i++) {
+                var c= rawXref.charCodeAt(i) - 32;
+                if (c == 94) c= rawXref.charCodeAt(++i) - 31;
+                c ^= 24;
+                var flag= c % 3;
+                c= Math.floor(c / 3);
+                v= v * 32 + c;
+                if (flag == 2) {
+                    last_file_no += v;
                     if (xref.line_nos.length) xrefList.push(xref);
                     xref= { file_no: last_file_no, line_nos: [] };
                     last_line_no= 0;
-                    continue;
+                    v= 0;
                 }
-                last_line_no += parseInt(item, 10);
-                xref.line_nos.push(last_line_no);
+                else if (flag == 1) {
+                    last_line_no += v;
+                    xref.line_nos.push(last_line_no);
+                    v= 0;
+                }
             }
+            
+            if (v) console.error("V MUST BE 0!!");
+            
             if (xref.line_nos.length) xrefList.push(xref);
             return xrefList;
         };

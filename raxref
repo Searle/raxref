@@ -360,7 +360,7 @@ sub read_conf {
     push @sections, 'OTHER', 'OMIT';
 
     for (keys %ftypes) {
-        $ftypes{$_}{'tokens_keywords_re'}= join('|', @{ $ftypes{$_}{'keywords'} });
+        $ftypes{$_}{'keywords_re'}= join('|', @{ $ftypes{$_}{'keywords'} });
         delete $ftypes{$_}{'keywords'};  # Remove from memory
     }
 
@@ -512,7 +512,7 @@ sub _analyze_file {
     $include_re=  qr/\b($include_re)\b/; 
 
     my $exclude_re=  $ftypes{$ftype}{'tokens_exclude_re'};
-    my $keywords_re= $ftypes{$ftype}{'tokens_keywords_re'};
+    my $keywords_re= $ftypes{$ftype}{'keywords_re'};
     $exclude_re= $exclude_re ? ($keywords_re ? $exclude_re . '|' . $keywords_re : $exclude_re) : $keywords_re;
     $exclude_re= $exclude_re eq '' ? undef : qr/^($exclude_re)$/;
     
@@ -623,55 +623,94 @@ sub _cleanup_tokens {
         $removed_count++;
 
         for my $section (@sections) {
-            my $tokens = $sections{$section}{'tokens'};
+            my $tokens= $sections{$section}{'tokens'};
             delete $tokens->{$token}
         }
     }
     printnl("Cleaning tokens: finished, removed $removed_count of $token_count tokens");
 }
 
-sub _tokens_as_js_new {
+# This function is a bit difficult to read because some optimizations are done...
+sub _tokens_as_js {
     my $tokens= shift;
+
+    my $js_keywords_re= $ftypes{'javascript'}{'keywords_re'};
+    $js_keywords_re= qr/^(?:$js_keywords_re)$/ if $js_keywords_re;
+    my $needs_quotes_re= qr/[^A-Za-z0-9_]/;
+
+    my @memoize_value;  # Using an array instead of a hash because it's faster
+    my @chr;
+    
+    $chr[$_]= chr($_ + 32) for 0 .. 95;
+    $chr[$_]= '~' . chr($_ + 31) for 7, 60, 94, 95;  # Some chars must be escaped: "'", "~", "\", chr(127). "~" because it's our escape char
+
+    my $code= sub {
+        my $is_file= shift;
+        my $value= shift;
+
+        my $value_key= $is_file + $value * 2;
+        return $memoize_value[$value_key] if defined $memoize_value[$value_key];
+
+        # Values are packed to sequences of chr(32)..chr(126).
+        # The lower 1.5 bits of the last char holds this information:
+        # 0: char in sequence, 1: last char in sequence, 2: last char in sequence and value is file_no
+
+        # Modify the values so that the escaped chars keep away from the lower popular numbers.
+        # Do that by xoring with 24 (any value will do, found by trial & error)
+        # So, 7 becomes 31, 60 -> 36, 94 -> 70, 95 -> 71. Well, seems to work.
+
+        my @result= $chr[(($value & 31) * 3 + ($is_file ? 2 : 1)) ^ 24];
+        $value >>= 5;
+        while ($value) {
+            unshift @result, $chr[(($value & 31) * 3) ^ 24];
+            $value >>= 5;
+        }
+        return $memoize_value[$value_key]= join('', @result);
+    };
 
     my @xrefs;
     for my $token (sort keys %$tokens) {
 
-print "****" . Dumper($tokens->{$token}); 
-
+        # Convert "1,2:3,4" to [ [1,2], [3,4] ]
 	my @refs= sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] }
                     map { [ split(/,/) ] }
                     split(/:/, $tokens->{$token});
-        
-print Dumper(@refs); 
 	my @xref;
 	my $last_file_no= 0;
 	my $last_line_no= 0;
-        
+
 	for my $ref (@refs) {
 	    my ($file_no, $line_no)= ($ref->[0], $ref->[1]);
 	    if ($file_no != $last_file_no) {
-		push @xref, ($file_no - $last_file_no) * 2;
+		push @xref, $code->(1, $file_no - $last_file_no);
 		$last_file_no= $file_no;
 	        $last_line_no= 0;
 	    }
             else {
                 next if $line_no == $last_line_no;
             }
-	    push @xref, ($line_no - $last_line_no) * 2 + 1;
-	    $last_line_no= $line_no;
+
+            # Inlined part of $code. Makes the whole function ~25% faster.
+            my $value_key= ($line_no - $last_line_no) * 2;
+            if (defined $memoize_value[$value_key]) {
+	        push @xref, $memoize_value[$value_key];
+                $last_line_no= $line_no;
+                next;
+            }
+
+	    push @xref, $code->(0, $line_no - $last_line_no);
+            $last_line_no= $line_no;
 	}
 
-print Dumper(@xref); 
-
-next;
-	push @xrefs, "'$token':'" . join(',', @xref) . "'\n";
+        if (($js_keywords_re && $token =~ $js_keywords_re) || $token =~ $needs_quotes_re) {
+            $token= "'$token'";
+        }
+	push @xrefs, "$token:'" . join('', @xref) . "'\n";
     }
-
-die;
     return "var tokens={" . join(',', @xrefs) . "};\n";
 }
 
-sub _tokens_as_js {
+sub _tokens_as_js__old {
     my $tokens= shift;
 
     my @xrefs;
@@ -844,7 +883,7 @@ sub write_files {
             $code =~ s/</&#60;/g;
             $code =~ s/>/&#62;/g;
 
-            my $keywords_re= $ftypes{$ftype}{'tokens_keywords_re'};
+            my $keywords_re= $ftypes{$ftype}{'keywords_re'};
             if ($keywords_re) {
                 if (!defined $ftype_keywords_re{$ftype}) {
                     $ftype_keywords_re{$ftype}= qr/\b($keywords_re)\b/;

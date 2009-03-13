@@ -13,12 +13,13 @@ jQuery(function($) {
 
     var Slot= function(type) {
         this.id= Slot.nextId++;
-        var newDiv= $("<div id='slot" + this.id + "' class='slot " + type + "'><div class='slot-i'>"
+        var newDiv= $("<div id='slot" + this.id + "' class='slot " + type + "' ref='" + type + "'><div class='slot-i slot-bg'>"
                         + "<div class='head-c'><div class='head'></div></div>"
-                        + "<div class='body-c col2border'><div class='body col2border'></div></div>"
+                        + "<div class='body-c slot-border'><div class='body slot-border'></div></div>"
                     + "</div></div>");
                     
         $("#slots").prepend(newDiv);
+        $("#slot" + this.id).data("slot", this);
     };
 
     Slot.nextId= 0;
@@ -28,12 +29,18 @@ jQuery(function($) {
     var slotS= new Slot('section');
     var slotP= new Slot('project');
 
-    function showText(slot, titleHtml, bodyHtml, omitScrollToTop) {
+    var activate= function(slot) {
+        $(".slot").removeClass("active");
+        $('#slot' + slot.id).addClass("active");
+    };
+
+    var showText= function(slot, titleHtml, bodyHtml, omitScrollToTop) {
         $('#slot' + slot.id + ' .head').html(titleHtml);
+        activate(slot);
         var $body= $('#slot' + slot.id + ' .body').html(bodyHtml);
         if (!omitScrollToTop) $body.scrollTo(0);
         return $body;
-    }
+    };
 
     var getXrefList= function(token) {
         var rawXref= tokens[token];
@@ -139,9 +146,8 @@ jQuery(function($) {
 
                     // cache-problematik: loesung: erste zeile checken ob file stimmt, ansonsten nochmal holen mit _rnd=sdf
                     if (lines[line_no] == undefined) {
-                        console.log(lines);
-                        console.log(lines.length);
-                        console.log(line_no);
+                        // console.log(lines);
+                        console.log(lines.length, line_no);
                     }
                     
                     var line= line_no >= lines.length
@@ -229,6 +235,12 @@ jQuery(function($) {
     // showFile(slotF, 120);
     // load: function( url, params, callback )
     // $('#slot0 .body').load("files/1.html");
+
+    $('.slot')
+        .live('mousedown', function(ev) {
+            activate($(this).data("slot"));
+        })
+    ;
 
     // General Hover
     $('.slot b, .code li .line_no')

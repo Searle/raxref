@@ -63,15 +63,25 @@ div {
 /* #E36994 #D72866 #961C47 #360A19 #FF005A unused   pink */
 /* #A6A6A6 #808080 #595959 #202020 #808080 unused   grey */
 
-.slot.project  .col0bg { background-color: #6994E3; }
-.slot.section  .col0bg { background-color: #69E3B8; }
-.slot.file     .col0bg { background-color: #94E369; }
-.slot.xref     .col0bg { background-color: #E3B869; }
+.slot.project  .slot-bg { background-color: #6994E3; }
+.slot.section  .slot-bg { background-color: #69E3B8; }
+.slot.file     .slot-bg { background-color: #94E369; }
+.slot.xref     .slot-bg { background-color: #E3B869; }
 
-.slot.project  .col2border { border-color: #1C4796 !important; }
-.slot.section  .col2border { border-color: #1C966B !important; }
-.slot.file     .col2border { border-color: #47961C !important; }
-.slot.xref     .col2border { border-color: #966B1C !important; }
+.slot.project  .slot-border { border-color: #1C4796 !important; }
+.slot.section  .slot-border { border-color: #1C966B !important; }
+.slot.file     .slot-border { border-color: #47961C !important; }
+.slot.xref     .slot-border { border-color: #966B1C !important; }
+
+.slot.active.project  .slot-border { border-color: #0A1936 !important; }
+.slot.active.section  .slot-border { border-color: #0A3626 !important; }
+.slot.active.file     .slot-border { border-color: #19360A !important; }
+.slot.active.xref     .slot-border { border-color: #36260A !important; }
+
+.slot.active.project  .slot-bg { background-color: #005AFF !important; }
+.slot.active.section  .slot-bg { background-color: #00FFA5 !important; }
+.slot.active.file     .slot-bg { background-color: #5AFF00 !important; }
+.slot.active.xref     .slot-bg { background-color: #FFA500 !important; }
 
 .slot.project  h1 { color: #0A1936; }
 .slot.section  h1 { color: #0A3626; }
@@ -92,10 +102,10 @@ div {
     background-color: #F66 !important;
 }
 
-.slot.project  { background-color: #2866D7; }
-.slot.section  { background-color: #28D799; }
-.slot.file     { background-color: #66D728; }
-.slot.xref     { background-color: #D79928; }
+x .slot.project  { background-color: #2866D7; }
+x .slot.section  { background-color: #28D799; }
+x .slot.file     { background-color: #66D728; }
+x .slot.xref     { background-color: #D79928; }
 
 .slot.project  { width: 12%; }
 .slot.section  { width: 16%; }
@@ -185,6 +195,7 @@ div {
     x-padding-right: 1em;
 }
 
+/* FIXME: Rename to POD */
 .code .doc-start {
     padding-top: 0.5em;
     margin-top: 0.5em;

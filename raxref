@@ -41,6 +41,7 @@ my $project_name;
 my $project_title;
 my %ftypes;
 my $output_path;
+my $token_threshold;
 
 # Contains: $sources[$source]= $path
 my %sources;
@@ -138,6 +139,7 @@ sub init {
     @sections= ();
     %build_sections= ();
     %analyze_sections= ();
+    $token_threshold= 0.8;        # 0.1 .. 1
 }    
 
 sub read_conf {
@@ -221,9 +223,19 @@ sub read_conf {
             $line =~ s/\s+(?:#.*)?$//;
             next if $line eq '' || $line =~ /^#/;
 
+            # Any context
+
+            if ($line =~ /^include\s+(.*)$/) {
+                $warn->("File '$1' already included. Ignored."), next if $files{$1};
+
+                return $err->("Error in included file") if $include->($1);
+                next;
+            }
+
+            # Void context
+
             if ($line =~ /^project\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
                 return 1 if $not_void_context->();
-
                 return $err->("Only one 'project' directive allowed. This is the second") if $project_name;
 
                 $project_name= $1;
@@ -232,7 +244,6 @@ sub read_conf {
             }
             if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
                 return 1 if $not_void_context->();
-
                 return $err->("Source already defined") if $sources{$1};
                 return $err->("Source path '$2' is not a directory") unless -d $2;
 
@@ -242,29 +253,28 @@ sub read_conf {
             }
             if ($line =~ /^output_path\s+(.+)$/) {
                 return 1 if $not_void_context->();
-
                 next if $opt_outpath;
                 return $err->("Output path '$1' is not a directory") unless -d $1;
 
                 $output_path= $1;
                 next;
             }
-            if ($line =~ /^include\s+(.*)$/) {
-                $warn->("File '$1' already included. Ignored."), next if $files{$1};
+            if ($line =~ /^token_threshold\s+(\d+)$/) {
+                return 1 if $not_void_context->();
+                return $err->("Valid threshold values are from 10 to 100") if $1 < 10 || $1 > 100;
 
-                return $err->("Error in included file") if $include->($1);
+                $token_threshold = $1 / 100;
                 next;
             }
 
             # TODO: "filetypes c99 perl php html"
 
-            # Project declaration
+            # Section declaration context
 
             if ($line =~ /^section\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
                 $ftype= undef;
                 $section= $1;
                 next if $section eq 'OMIT' || $section eq 'OTHER';
-
                 return $err->("Project already defined") if $sections{$section};
 
                 $new_section->($section, $2 ? $2 : $1, 0);
@@ -293,7 +303,7 @@ sub read_conf {
                 next;
             }
 
-            # File type declaration
+            # File type declaration context
 
             if ($line =~ /^filetype\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
                 $section= undef;
@@ -311,7 +321,6 @@ sub read_conf {
             }
             if ($line =~ /^keywords_from\s+(.+)$/) {
                 return 1 if $not_ftype_context->();
-
                 return $err->("Unknown filetype '$1'") unless $ftypes{$ftype};
 
                 push @{ $ftypes{$ftype}{'keywords'} }, @{ $ftypes{$1}{'keywords'} };
@@ -604,11 +613,11 @@ sub _cleanup_tokens {
     my @median= sort { $a <=> $b } keys %median;
     return unless @median;
 
-    my $max_ref_count= $median[scalar @median / 2] * 6;
+    my $max_ref_count= $median[$#median * ($token_threshold ** 2)];
 
     my $removed_count= 0;
     while (my ($token, $ref_count)= each %ref_count) {
-        next if $ref_count >= 2 && $ref_count < $max_ref_count;
+        next if $ref_count >= 2 && $ref_count <= $max_ref_count;
 
 	delete $tokens->{$token};
         $removed_count++;

@@ -36,3 +36,4 @@ TODO misc, unsorted:
 - Optimize File scanning for PHP
 - Fix the FIXMEs
 - Include Raxref Version in output
+- Add conf directive for sections: "filetypes c99 perl php html"

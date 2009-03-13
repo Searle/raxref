@@ -139,7 +139,7 @@ sub init {
     @sections= ();
     %build_sections= ();
     %analyze_sections= ();
-    $token_threshold= 0.8;        # 0.1 .. 1
+    $token_threshold= 0.85;        # 0.1 .. 1
 }    
 
 sub read_conf {
@@ -526,8 +526,6 @@ sub _analyze_file {
             push @{ $tokens->{$1} }, "$file_no,$line_no";
         }
     }
-
-    # print Dumper(\$tokens); die;
 }
 
 sub analyze_files {
@@ -613,7 +611,9 @@ sub _cleanup_tokens {
     my @median= sort { $a <=> $b } keys %median;
     return unless @median;
 
-    my $max_ref_count= $median[$#median * ($token_threshold ** 2)];
+    # IDEA: optional lower limit: remove 2 occurances in same file
+
+    my $max_ref_count= $median[$#median * ($token_threshold ** 1.5)];
 
     my $removed_count= 0;
     while (my ($token, $ref_count)= each %ref_count) {
@@ -626,7 +626,6 @@ sub _cleanup_tokens {
             my $tokens = $sections{$section}{'tokens'};
             delete $tokens->{$token}
         }
-
     }
     printnl("Cleaning tokens: finished, removed $removed_count of $token_count tokens");
 }

@@ -37,3 +37,4 @@ TODO misc, unsorted:
 - Fix the FIXMEs
 - Include Raxref Version in output
 - Add conf directive for sections: "filetypes c99 perl php html"
+- Make conf direcive 'token_threshold' section-specific

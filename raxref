@@ -634,9 +634,10 @@ sub _cleanup_tokens {
 sub _tokens_as_js {
     my $tokens= shift;
 
-    my $js_keywords_re= $ftypes{'javascript'}{'keywords_re'};
-    $js_keywords_re= qr/^(?:$js_keywords_re)$/ if $js_keywords_re;
-    my $needs_quotes_re= qr/[^A-Za-z0-9_]/;
+    ## Safari doesn't like this optimisation:
+    ## my $js_keywords_re= $ftypes{'javascript'}{'keywords_re'};
+    ## $js_keywords_re= qr/^(?:$js_keywords_re)$/ if $js_keywords_re;
+    ## my $needs_quotes_re= qr/[^A-Za-z0-9_]/;
 
     my @memoize_value;  # Using an array instead of a hash because it's faster
     my @chr;
@@ -702,10 +703,12 @@ sub _tokens_as_js {
             $last_line_no= $line_no;
 	}
 
-        if (($js_keywords_re && $token =~ $js_keywords_re) || $token =~ $needs_quotes_re) {
-            $token= "'$token'";
-        }
-	push @xrefs, "$token:'" . join('', @xref) . "'\n";
+        ## Safari doesn't like this:
+        ## if (($js_keywords_re && $token =~ $js_keywords_re) || $token =~ $needs_quotes_re) {
+        ##     $token= "'$token'";
+        ## }
+
+	push @xrefs, "'$token':'" . join('', @xref) . "'\n";
     }
     return "var tokens={" . join(',', @xrefs) . "};\n";
 }

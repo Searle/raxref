@@ -13,7 +13,7 @@ jQuery(function($) {
 
     var Slot= function(type) {
 
-            // BTW: This is the most packer-friendly way writing JS Classes I found:
+        // BTW: This is the most packer-friendly way writing JS Classes I found:
         // Write everything as private code at make the assignments to the
         // properties at the very end. Both yuicomressor and dojocompressor are
         // very happy with this style. Other libraries mess this up terribly,
@@ -97,7 +97,10 @@ jQuery(function($) {
                         // If new fetchResult was called, stop bothering.
                         // I couldn't make Ajaxthingy.abort() working, properly,
                         // so do it this way. 
-                        if (iCurrentCount < iFetchResultCount) return;
+                        if (iCurrentCount < iFetchResultCount) {
+                            console.warn("Ajax call aborted");
+                            return;
+                        }
 
                         if (status == "success" || status == "notmodified") {
                             fetchedFunc(xref, res.responseText);

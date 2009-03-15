@@ -50,7 +50,6 @@ div {
 
 .slot-i {
     height: 100%;
-    x-overflow: hidden;           /* Safari needs this, otherwise a vertical slider will be shown */
     padding: 0.5em;
     padding-top: 3.5em;
 }
@@ -59,20 +58,22 @@ div {
     Head
  *****************************************************************************/
 
-.head-c {
+.head-cc {
     position: relative;
     width: 100%;
     height: 0;
 }
 
-.head {
+.head-c {
     position: absolute;
     top: -2.5em;
     width: 100%;
     height: 2em;
-    x-font-size: 123%;
     overflow: hidden;
-    x-background-color: red;
+}
+
+.head {
+    font-size: 123%;
 }
 
 /*****************************************************************************
@@ -83,7 +84,6 @@ div {
     position: relative;
     width: 100%;
     height: 0;
-    x-background-color: red;
     display: none;
 }
 
@@ -95,7 +95,6 @@ div {
     max-width: 10em;
     height: 3em;
     overflow: hidden;
-    x-background-color: #CCC;
     border: 2px solid #FFF;
 }
 
@@ -104,6 +103,7 @@ div {
     padding-left: 0.5em;
     display: inline-block;
     max-width: 1.5em;
+    cursor: pointer;
 }
 
 .filter .search-input {
@@ -142,7 +142,7 @@ div {
     padding-top: 7em;
 }
 
-.filter-on .head {
+.filter-on .head-c {
     top: -6em;
 }
 

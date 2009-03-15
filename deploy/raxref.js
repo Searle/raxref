@@ -31,7 +31,7 @@ jQuery(function($) {
         var newDiv= $("<div id='slot" + id + "' class='slot " + type + " filter-onx' ref='" + type + "'>"
                         + "<div class='slot-i slot-bg round-corners'>"
                             + "<div class='body-c slot-border round-corners'>"
-                                + "<div class='head-c'><div class='head'></div></div>"
+                                + "<div class='head-cc'><div class='head-c'><div class='head'></div></div></div>"
                                 + "<div class='filter-c'><div class='filter round-corners'>"
                                     + "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
                                 + "</div></div>"
@@ -54,14 +54,30 @@ jQuery(function($) {
             activeSlot= me;
         };
 
+        // Return the input jObject
         var showFilter= function(show) {
             if (show) {
                 $('#slot' + id).addClass('filter-on');
+                return $('#slot' + id + ' .search-input');
             }
-            else {
-                $('#slot' + id).removeClass('filter-on');
-            }
-            return $('#slot' + id + ' .search-input');
+            $('#slot' + id).removeClass('filter-on');
+            return $('#slot' + id + ' .search-input').val('').blur();
+        };
+
+        var updateFilter= function() {
+            var search= $('#slot' + id + ' .search-input').val().toLowerCase();
+            $('#slot' + id + ' .body li').each(function(el_i, el) {
+                var $el= $(el);
+                var inx= $el.text().toLowerCase().indexOf(search);
+                if (inx < 0) {
+                    // var oldHtml= $el.html();
+                    // var newHtml= oldHtml.replace(/<\/?u>/, '');
+                    // if (oldHtml != newHtml) $el.html(newHtml);
+                    $el.css('display', 'none');
+                    return;
+                }
+                $(el).css('display', 'inherit');
+            });
         };
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {
@@ -279,6 +295,7 @@ jQuery(function($) {
         this.showProject= showProject;
         this.showSection= showSection;
         this.showFilter= showFilter;
+        this.updateFilter= updateFilter;
 
         return this;
     };
@@ -353,6 +370,8 @@ jQuery(function($) {
         })
     ;
 
+    // FIXME: MUST be live()
+
     // Track active input element
     $('input').focus(function(ev) {
             activeElement= this;
@@ -360,10 +379,18 @@ jQuery(function($) {
         .blur(function(ev) {
             activeElement= null;
         })
-        .keypress(function(ev) {
-            if (activeSlot) {
-                console.log("!!!");
-            }
+        .keyup(function(ev) {
+            if (activeSlot) activeSlot.updateFilter();
+        })
+    ;
+
+    $('.filter .closer')
+        .live("click", function(ev) {
+            var el= $(this).parents('.slot');
+            var slot= el.data("slot");
+            if (!slot) return;
+            slot.showFilter(false);
+            slot.updateFilter();
         })
     ;
 
@@ -378,8 +405,7 @@ jQuery(function($) {
             }
             if (activeElement && ev.keyCode == 27) {
                 activeSlot.showFilter(false);
-                activeElement.value= '';
-                activeElement.blur();
+                return;
             }
         }
     });

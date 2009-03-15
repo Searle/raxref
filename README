@@ -12,7 +12,7 @@ TBD
 
 Stuff:
 
-- Only tested with FF3 3.0.7 and Safari 3.2.2 !!!
+- Only tested with FF3 3.0.7, Safari 3.2.2 and Chrome 2 !!!
 
 - Raxref is written in Perl 5 and JavaScript
 - Made to understand the Parrot Project

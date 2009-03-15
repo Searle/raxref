@@ -11,6 +11,9 @@ if (typeof console == 'undefined') {
 
 jQuery(function($) {
 
+    var activeSlot= null;
+    var activeElement= null;
+
     var Slot= function(type) {
 
         // BTW: This is the most packer-friendly way writing JS Classes I found:
@@ -20,25 +23,45 @@ jQuery(function($) {
         // e.g. jQueryUI (especially the calendar is EVIL - could be half the
         // size) Dunno why...
 
+        var me= this;
         var id= Slot.nextId++;
-        var filter= "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
+
+        // The HTML here turned out a bit complicated, but I find it REALLY hard to make CSS work with percentage values
+        // even on modern browsers.
         var newDiv= $("<div id='slot" + id + "' class='slot " + type + " filter-onx' ref='" + type + "'>"
                         + "<div class='slot-i slot-bg round-corners'>"
                             + "<div class='body-c slot-border round-corners'>"
-
-                            + "<div class='head-c'><div class='head'></div></div>"
-                            + "<div class='filter-c'><div class='filter round-corners'>" + filter + "</div></div>"
-                            
+                                + "<div class='head-c'><div class='head'></div></div>"
+                                + "<div class='filter-c'><div class='filter round-corners'>"
+                                    + "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
+                                + "</div></div>"
                             + "<div class='body slot-border round-corners'></div></div>"
                         + "</div>"
                     + "</div>");
-                    
+
         $("#slots").prepend(newDiv);
-        $("#slot" + id).data("slot", this);
+        $("#slot" + id).data("slot", me);
+
+        // TODO: Use this function on unload
+        var _destroy= function() {
+            me= null;
+            $("#slot" + id).data("slot", me);
+        };
 
         var activate= function() {
             $(".slot").removeClass("active");
             $('#slot' + id).addClass("active");
+            activeSlot= me;
+        };
+
+        var showFilter= function(show) {
+            if (show) {
+                $('#slot' + id).addClass('filter-on');
+            }
+            else {
+                $('#slot' + id).removeClass('filter-on');
+            }
+            return $('#slot' + id + ' .search-input');
         };
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {
@@ -255,6 +278,7 @@ jQuery(function($) {
         this.showFile= showFile;
         this.showProject= showProject;
         this.showSection= showSection;
+        this.showFilter= showFilter;
 
         return this;
     };
@@ -328,6 +352,37 @@ jQuery(function($) {
             slotF.showFile(pos[0], pos[1]);
         })
     ;
+
+    // Track active input element
+    $('input').focus(function(ev) {
+            activeElement= this;
+        })
+        .blur(function(ev) {
+            activeElement= null;
+        })
+        .keypress(function(ev) {
+            if (activeSlot) {
+                console.log("!!!");
+            }
+        })
+    ;
+
+    // Catch keyboard inputs and display fast search
+    $(window).keydown(function(ev, a, b, c) {
+        if (activeSlot) {
+
+            // Ugh. Keycodes are alchemy. I just can't be bothered to fix the special cases...
+            if (!activeElement && ev.keyCode >= 48 && ev.keyCode < 91) {
+                activeSlot.showFilter(true).focus();
+                return;
+            }
+            if (activeElement && ev.keyCode == 27) {
+                activeSlot.showFilter(false);
+                activeElement.value= '';
+                activeElement.blur();
+            }
+        }
+    });
 
     document.title= project_title + ' - Raxref';
 });

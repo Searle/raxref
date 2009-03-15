@@ -21,10 +21,17 @@ jQuery(function($) {
         // size) Dunno why...
 
         var id= Slot.nextId++;
-        var newDiv= $("<div id='slot" + id + "' class='slot " + type + "' ref='" + type + "'><div class='slot-i slot-bg'>"
-                        + "<div class='head-c'><div class='head'></div></div>"
-                        + "<div class='body-c slot-border'><div class='body slot-border'></div></div>"
-                    + "</div></div>");
+        var filter= "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
+        var newDiv= $("<div id='slot" + id + "' class='slot " + type + " filter-onx' ref='" + type + "'>"
+                        + "<div class='slot-i slot-bg round-corners'>"
+                            + "<div class='body-c slot-border round-corners'>"
+
+                            + "<div class='head-c'><div class='head'></div></div>"
+                            + "<div class='filter-c'><div class='filter round-corners'>" + filter + "</div></div>"
+                            
+                            + "<div class='body slot-border round-corners'></div></div>"
+                        + "</div>"
+                    + "</div>");
                     
         $("#slots").prepend(newDiv);
         $("#slot" + id).data("slot", this);

@@ -66,8 +66,27 @@ jQuery(function($) {
 
         var updateFilter= function() {
             var search= $('#slot' + id + ' .search-input').val().toLowerCase();
+            var $lastLiH1= null;
+            var foundOne= false;
+            
+            var checkLastLiH1= function($el) {
+                if (!$lastLiH1 || foundOne) return false;
+                $lastLiH1.css('display', 'none');
+                $lastLiH1= $el;
+                return true;
+            };
+            
             $('#slot' + id + ' .body li').each(function(el_i, el) {
+
                 var $el= $(el);
+                if ($('h1', $el).length) {
+                    $el.css('display', 'inherit');
+                    if (checkLastLiH1($el)) return;
+                    $lastLiH1= $el;
+                    foundOne= false;
+                    return;
+                }
+
                 var inx= $el.text().toLowerCase().indexOf(search);
                 if (inx < 0) {
                     // var oldHtml= $el.html();
@@ -76,8 +95,10 @@ jQuery(function($) {
                     $el.css('display', 'none');
                     return;
                 }
-                $(el).css('display', 'inherit');
+                $el.css('display', 'inherit');
+                foundOne= true;
             });
+            checkLastLiH1();
         };
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {
@@ -182,7 +203,7 @@ jQuery(function($) {
             var result= [];
             for (var xrefList_i in xrefList) {
                 var xref= xrefList[xrefList_i];
-                result.push("<h1>" + htmlize_filename(file(xref.file_no)[2]) + "</h1><ol>");
+                result.push("<ol><li><h1>" + htmlize_filename(file(xref.file_no)[2]) + "</h1></li>");
                 for (var line_no_i in xref.line_nos) {
                     var line_no= xref.line_nos[line_no_i];
                     var spanId= 'q' + id + '-' + xref.file_no + '-' + line_no;

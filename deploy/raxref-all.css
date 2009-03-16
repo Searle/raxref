@@ -255,12 +255,32 @@ x .slot.xref     { background-color: #D79928; }
     white-space: pre;
 }
 
+.code i,
+.code i b {
+    font-weight: bold;
+    font-style: normal;
+    color: #600;
+}
+
+.code li .line_no {
+    background-color: #E4E4E4;
+    display: block;
+    float: left;
+    width: 4em;
+    text-align: right;
+    margin-right: 1em;
+    cursor: pointer;
+}
+
+.code li .loading {
+    color: #888;
+}
+
+/** POD STUFF **/
+
 .code .doc {
-    x-background-color: #FC7;
     border-left: 0.5em solid #FC7;
     padding-left: 1em;
-    x-border-right: 0.5em solid #FC7;
-    x-padding-right: 1em;
 }
 
 /* FIXME: Rename to POD */
@@ -287,27 +307,6 @@ x .slot.xref     { background-color: #D79928; }
     padding-bottom: 0.5em;
     margin-bottom: 0.5em;
     border-bottom: 0.5em solid #FC7;
-}
-
-.code i,
-.code i b {
-    font-weight: bold;
-    font-style: normal;
-    color: #600;
-}
-
-.code li .line_no {
-    background-color: #E4E4E4;
-    display: block;
-    float: left;
-    width: 4em;
-    text-align: right;
-    margin-right: 1em;
-    cursor: pointer;
-}
-
-.code li .loading {
-    color: #888;
 }
 
 /*****************************************************************************

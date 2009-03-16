@@ -1051,6 +1051,23 @@ The latter will also kill the caches.
 B<Raxref> was originally written to build a browsable cross reference for the
 parrot project.
 
+=head2 CONFIG FILES
+
+The config files describe your project repository. Usually two lines will be sufficient:
+
+  include conf/std.conf
+  source myproject /home/me/projects/myproject
+                                                        
+This tells raxref that you want to use the standard filtetype definitions from 'std.conf'
+and where to find the sources of your project.
+
+Running B<raxref -c myproject.conf> will produce the cross reference information and
+store it in the directory 'output'.
+
+If you want to describe your project in more detail, this are the directives that B<Raxref>
+will accept in conf files:
+
+
 =head1 SHAMELESS PLUG
 
 If you like this product, you may also like rabak (http://www.raisin.de/rabak),

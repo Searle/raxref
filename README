@@ -19,7 +19,6 @@ Stuff:
 - Makes use of some CSS 2 features that most browsers don't support
 
 TODO by priority:
-- JS: Add quick search
 - CSS: Finish color coding
 - JS: Add Slot resizing
 - Add a simple possibility to build a rexref web app without a conf file

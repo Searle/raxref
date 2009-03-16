@@ -10,7 +10,8 @@
 use warnings;
 use strict;
 
-use Getopt::Long 2.24 qw( :config auto_help auto_version bundling );
+use Getopt::Long 2.24 qw( :config auto_version bundling );
+use Pod::Usage;
 use File::Copy;
 use DB_File;
 use Data::Dumper;
@@ -18,23 +19,29 @@ use Data::Dumper;
 our $VERSION= '0.1';
 
 # TODO: Doc
-my $have_zlib;
+# my $have_zlib;
 
 # Zlib not yet NOT IMPLEMENTED
-BEGIN {
-    eval { require Compress::Raw::Zlib; };
-    unless ($@) {
-        $have_zlib= 1;
-        import Compress::Raw::Zlib;
-    }
-}
+# BEGIN {
+#     eval { require Compress::Raw::Zlib; };
+#     unless ($@) {
+#         $have_zlib= 1;
+#         import Compress::Raw::Zlib;
+#     }
+# }
 
 our $opt_quiet;
 our $opt_conf= "raxref.conf";
 our $opt_all;
 our $opt_outpath;
+our $opt_help;
+our $opt_man;
 
-GetOptions( "quiet|q", "conf|c=s", "all|a", "outpath|o=s" ) or exit;
+GetOptions( "quiet|q", "conf|c=s", "all|a", "outpath|o=s", "help|h", "man|m" ) or pod2usage(2);
+pod2usage(-verbose => 1) if $opt_help;
+pod2usage(-verbose => 2) if $opt_man;
+
+die;
 
 # TODO: Doc
 my $project_name;
@@ -357,7 +364,7 @@ sub read_conf {
     }
 
     unless ($default_source) {
-        printnl("ERROR in $file:\n  A 'source' directive is missing. Please add a 'source <path>' to your config file!");
+        printnl("ERROR in $file:\n  A 'source' directive is missing. Please add a 'source <name> <path>' to your config file!");
         return 1;
     }
 
@@ -1035,38 +1042,27 @@ Raxref - Simple, lightweight and fast Cross Referencing
 raxref [options] [section ...]
                 
  Options:
-    --help              brief help message
-    --conf file         alternate config file
-    --all               rebuild all sections
-    --quiet             omit console output
-    --outpath           output path (overrides config file directive)
+    --help (-h)              brief help message
+    --man (-m)               man page. Similar to "perdoc raxref"
+    --conf file (-c file)    config file. Defaults to "raxref.conf"
+    --all (-a)               rebuild all sections
+    --outpath path (-o path) output path (overrides config file directive)
+    --quiet (-q)             omit console output
 
-Use "perldoc raxref" for more information. Man page to come...
-
-TODO: WRITE DOC!!!
-            
-=head1 OPTIONS
-                                   
-=over 8
-                                       
-=item B<-help>
-                                   
-Print a brief help message and exits.
+Use C<raxref --man> for more information.
                                                    
-=back
+=head1 DESCRIPTION
 
-Calling raxref builds the Cross Reference JavaScript Application. Only the missing parts
-are built.
+TBD! Snippets:
+                                                                   
+B<Raxref> was originally written to build a browsable cross reference for the
+Parrot project. But you may use it for any project, because it's not Parrot-specific
+at all, except that there's a bundled config file suitable for Parrot.
 
 The default config file is B<raxref.conf>.
 
-To force a build ANGEBEN the section on the command line, or '--all' to rebuild all.
-The latter will also kill the caches.
-
-=head1 DESCRIPTION
-                                                                   
-B<Raxref> was originally written to build a browsable cross reference for the
-parrot project.
+To force a build of certain sections, add them to the command line, or use the '--all' switch
+to rebuild everything. '--all' will also rebuild all caches.
 
 =head2 CONFIG FILES
 
@@ -1084,6 +1080,69 @@ store it in the directory 'output'.
 If you want to describe your project in more detail, this are the directives that B<Raxref>
 will accept in conf files:
 
+=over
+
+=item C<project name title>
+
+Tells B<Raxref> how you call your project.
+The project identifier <name> is used for file names and such, so keep it unique.
+The <title> is in the UI.
+
+=item C<source name path>
+
+This is where your source code lives. You can have multiple C<source> directives. Parameters
+of the C<includes> and C<excludes> directives must then be prefixed with the C<source> name
+followed by a colon, e.g. C<includes inclsrc:/includes>.
+
+=item C<output_path path>
+
+TBD
+
+=item C<token_threshold value>
+
+TBD
+
+=item C<section name title>
+
+TBD
+
+=item C<omit>
+
+TBD
+
+=item C<includes path>
+
+TBD
+
+=item C<excludes path>
+
+TBD
+
+=item C<filetype name title>
+
+TBD
+
+=item C<keywords keyword1 keyword2 ...>
+
+TBD
+
+=item C<keywords_from filetype>
+
+TBD
+
+=item C<file_re regex>
+
+TBD
+
+=item C<tokens_exclude_re>
+
+TBD
+
+=item C<tokens_include_re>
+
+TBD
+
+=back
 
 =head1 SHAMELESS PLUG
 

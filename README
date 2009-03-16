@@ -16,10 +16,11 @@ Stuff:
 
 - Raxref is written in Perl 5 and JavaScript
 - Made to understand the Parrot Project
-- Makes use of some CSS 2 features that most browsers don't support
+- Makes use of some CSS 2/3 features that older browsers don't support
 
 TODO by priority:
 - CSS: Finish color coding
+- Add Xref-Keyword Search
 - JS: Add Slot resizing
 - Add a simple possibility to build a rexref web app without a conf file
   e.g. raxref --source some/path (auto-include conf/std.conf)

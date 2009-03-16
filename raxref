@@ -295,8 +295,8 @@ sub read_conf {
 
                 printnl("$file, line $line_i: WARNING! 'excludes' not implemented yet!") if $key eq 'exclude';
 
-                my ($source, $path)= ($2 =~ /^((.*?):(.*))$/) ? ($2, $3) : ($default_source, $2);
-                return $err->("Unknown source '$source'") unless $sources{$source};
+                my ($source, $path)= ($2 =~ /^((.*?):(.*))$/) ? ($2, $3) : ("", $2);
+                return $err->("Unknown source '$source'") unless $source eq "" || $sources{$source};
                 return $err->("Path must begin with '/' by convention") unless $path =~ /^\/(.*)/;
 
                 push @{ $sections{$section}{$key} }, [ $source, $1 ];
@@ -356,6 +356,11 @@ sub read_conf {
         return 1;
     }
 
+    unless ($default_source) {
+        printnl("ERROR in $file:\n  A 'source' directive is missing. Please add a 'source <path>' to your config file!");
+        return 1;
+    }
+
     $sections{'OTHER'}{'index'}= scalar @sections; 
     push @sections, 'OTHER', 'OMIT';
 
@@ -412,14 +417,15 @@ sub collect_files {
     for my $section (@sections) {
         my $includes= $sections{$section}{'includes'};
         for my $include (@$includes) {
-            my $count= 0;
-            $count++ while $include->[1] =~ /\//g;
-            push @{ $filter{$include->[0]} }, [
+            my $source= $include->[0] || $default_source;
+            my $path= ($include->[1] eq '') ? '' : $include->[1] . '/';
+            my $depth= $path =~ tr/\///;
+            push @{ $filter{$source} }, [
                 $section,                   # 0
-                $include->[0],              # 1 source, unused
-                $include->[1] . '/',        # 2 path
-                $count,                     # 3
-                length($include->[1]) + 1   # 4 length(path)
+                $source,                    # 1 source, unused
+                $path,                      # 2 path
+                $depth,                     # 3 depth
+                length($path)               # 4 length(path)
             ];
         }
     }
@@ -480,8 +486,19 @@ sub collect_files {
             }
         }
     }
-
     printx();
+
+    my @new_sections= ();
+    for my $section (@sections) {
+        unless (@{ $sections{$section}{'files'} }) {
+            printnl("Collecting files: Section '$section' omitted because it contains no files")
+                unless $section eq 'OMIT' || $section eq 'OTHER';
+            next;
+        }
+        push @new_sections, $section;
+    }
+    @sections= @new_sections;
+
     printnl("Collecting files: finished, found $files_count files");
 }
 

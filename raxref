@@ -41,14 +41,13 @@ GetOptions( "quiet|q", "conf|c=s", "all|a", "outpath|o=s", "help|h", "man|m" ) o
 pod2usage(-verbose => 1) if $opt_help;
 pod2usage(-verbose => 2) if $opt_man;
 
-die;
-
 # TODO: Doc
 my $project_name;
 my $project_title;
 my %ftypes;
 my $output_path;
 my $token_threshold;
+my $split;
 
 # Contains: $sources[$source]= $path
 my %sources;
@@ -101,9 +100,9 @@ sub mtime {
 }
 
 # DEBUG: For checking memory consumption
-sub die2 {
-    print STDERR "OK!\n"; <STDIN>; die;
-}
+# sub die2 {
+#     print STDERR "OK!\n"; <STDIN>; die;
+# }
 
 # TODO: Implement some sort of warning if file can't be read
 sub read_file {
@@ -147,6 +146,7 @@ sub init {
     %build_sections= ();
     %analyze_sections= ();
     $token_threshold= 0.85;        # 0.1 .. 1
+    $split= 100;
 }    
 
 sub read_conf {
@@ -482,12 +482,30 @@ sub collect_files {
                     $file_cache{"$file_key:mtime"}= $mtime;
 
                     # Changed file, must re-analyze Project:
+                    # Actually, we could only re-analyze the file, but then the tokens
+                    # may be slightly wrong. Which, on the other hand, maybe doesn't really
+                    # matter. I'll have to check this out some time...
                     $analyze_sections{$section}= 2;
                 }
 
-                # TODO: Check file modified date
-                
-                push @{ $sections{$section}{'files'} }, [ $ftype, $source, $file, $file_no, $section ];
+                my $lines= $file_cache{"$file_key:lines"};
+                if (!defined $lines) {
+                    $lines= -1;
+
+                    # We need to know the number of lines in the file. If it's missing,
+                    # we'll have to re-analyze:
+                    $analyze_sections{$section}= 3;
+                }
+
+                # push @{ $sections{$section}{'files'} }, [ $ftype, $source, $file, $file_no, $section ];
+                push @{ $sections{$section}{'files'} }, {
+                        ftype => $ftype,
+                        source => $source,
+                        file => $file,
+                        file_no => $file_no,
+                        section => $section,
+                        lines => $lines
+                    };
                 $files_count++;
 	        last;
             }
@@ -520,10 +538,10 @@ sub _analyze_file {
     my $section= shift;
     my $fileinfo= shift;
 
-    my $ftype= $fileinfo->[0];
-    my $source= $fileinfo->[1];
-    my $file= $fileinfo->[2];
-    my $file_no= $fileinfo->[3];
+    my $ftype= $fileinfo->{'ftype'};
+    my $source= $fileinfo->{'source'};
+    my $file= $fileinfo->{'file'};
+    my $file_no= $fileinfo->{'file_no'};
 
     printx("Analysing section '$section': reading file '$file'");
 
@@ -549,6 +567,11 @@ sub _analyze_file {
 
             push @{ $tokens->{$1} }, "$file_no,$line_no";
         }
+    }
+
+    if ($fileinfo->{'lines'} < 0) {
+        my $file_key= "$source:$file";
+        $file_cache{"$file_key:lines"}= $fileinfo->{'lines'}= $line_no;
     }
 }
 
@@ -613,7 +636,7 @@ sub _files_as_js {
     my $files= shift;
 
     return "var files=[" . join(",\n", map {
-        $_ ? "['" . $_->[0] . "','" . $_->[1] . "','" . $_->[2] . "'," . $sections{$_->[4]}{'index'} . "]" : 'null'
+        $_ ? "['" . $_->{'ftype'} . "','" . $_->{'source'} . "','" . $_->{'file'} . "'," . $sections{$_->{'section'}}{'index'} . "]" : 'null'
     } @$files) . "];\n";
 }
 
@@ -776,7 +799,7 @@ sub write_data_js {
 
         my $files = $sections{$section}{'files'};
         for my $fileinfo (@$files) {
-            $all_files[$fileinfo->[3]]= $fileinfo;
+            $all_files[$fileinfo->{'file_no'}]= $fileinfo;
         }
 
         my $tokens = $sections{$section}{'tokens'};
@@ -884,7 +907,7 @@ sub write_files {
 
         my $file_i= 0;
         for my $fileinfo (@$files) {
-            my ($ftype, $source, $file, $file_no)= @$fileinfo;
+            my ($ftype, $source, $file, $file_no)= ($fileinfo->{'ftype'}, $fileinfo->{'source'}, $fileinfo->{'file'}, $fileinfo->{'file_no'});
             my $infile= $sources{$source} . '/' . $file;
             my $outfile= "$output_path/raxref-$project_name/file$file_no.html";
 
@@ -968,7 +991,8 @@ sub write_files {
                 push @result, "<li$class>$_</li>";
             }
 
-            $code= "<!-- $source" . ":$file --><div class='code'>\n<ol>" . join("\n", @result) . "</ol>\n</div>";
+            # $code= "<!-- $source" . ":$file --><div class='code'>\n<ol>" . join("\n", @result) . "</ol>\n</div>";
+            $code= "<!-- $source" . ":$file -->" . join("\n", @result);
 
             write_file($outfile, $code);
             $file_i++;

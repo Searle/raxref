@@ -254,7 +254,10 @@ jQuery(function($) {
                         line_no= line_no > 0 ? line_no : 0;
                         var $body= showText(
                             "File '" + htmlize(file(file_no)[2]) + "'",
-                            "<h1>" + htmlize_filename(file(file_no)[2]) + "</h1>" + res.responseText,
+                            ["<h1>", htmlize_filename(file(file_no)[2]), "</h1>",
+                                "<div class='code'><ol>",
+                                res.responseText,
+                                "</ol></div>"].join(''),
                             true);
                         $body.scrollTo(line_no <= 6 ? 0 : "li:nth-child(" + (line_no - 6)+ ")");
                         if (line_no) {

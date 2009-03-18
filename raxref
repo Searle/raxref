@@ -14,6 +14,8 @@ use Getopt::Long 2.24 qw( :config auto_version bundling );
 use Pod::Usage;
 use File::Copy;
 use DB_File;
+use POSIX qw( ceil );
+
 use Data::Dumper;
 
 our $VERSION= '0.1';
@@ -47,7 +49,7 @@ my $project_title;
 my %ftypes;
 my $output_path;
 my $token_threshold;
-my $split;
+## my $split;
 
 # Contains: $sources[$source]= $path
 my %sources;
@@ -146,7 +148,7 @@ sub init {
     %build_sections= ();
     %analyze_sections= ();
     $token_threshold= 0.85;        # 0.1 .. 1
-    $split= 100;
+    ## $split= 100;
 }    
 
 sub read_conf {
@@ -504,7 +506,8 @@ sub collect_files {
                         file => $file,
                         file_no => $file_no,
                         section => $section,
-                        lines => $lines
+                        lines => $lines,
+                        lines_per_part => lines_per_part($lines)
                     };
                 $files_count++;
 	        last;
@@ -527,6 +530,17 @@ sub collect_files {
     printnl("Collecting files: finished, found $files_count files");
 }
 
+sub lines_per_part {
+    my $lines= shift;
+    
+    return 0 if $lines < 0;
+    return $lines if $lines < 300;
+
+    $lines= ceil($lines / 15);
+    return 200 if $lines < 200;
+    return 1500 if $lines > 1500;
+    return $lines;
+}
 
 ###############################################################################
 #
@@ -572,6 +586,7 @@ sub _analyze_file {
     if ($fileinfo->{'lines'} < 0) {
         my $file_key= "$source:$file";
         $file_cache{"$file_key:lines"}= $fileinfo->{'lines'}= $line_no;
+        $fileinfo->{'lines_per_part'}= lines_per_part($line_no);
     }
 }
 
@@ -636,7 +651,7 @@ sub _files_as_js {
     my $files= shift;
 
     return "var files=[" . join(",\n", map {
-        $_ ? "['" . $_->{'ftype'} . "','" . $_->{'source'} . "','" . $_->{'file'} . "'," . $sections{$_->{'section'}}{'index'} . "]" : 'null'
+        $_ ? "[" . $_->{'lines_per_part'} . "," . $_->{'lines'} . ",'" . $_->{'file'} . "'," . $sections{$_->{'section'}}{'index'} . "]" : 'null'
     } @$files) . "];\n";
 }
 
@@ -823,6 +838,7 @@ sub write_data_js {
     print $fout "var project_name='$project_name';\n";
     (my $prtitle_html= $project_title) =~ s/'/\\'/g;
     print $fout "var project_title='$prtitle_html';\n";
+    ## print $fout "var file_split=$split;\n";
     print $fout _sections_as_js();
     print $fout _files_as_js(\@all_files);
     print $fout _tokens_as_js(\%all_tokens);
@@ -875,7 +891,7 @@ sub deploy_requirements {
 
 ###############################################################################
 #
-#       Generate HTML Files
+#       Generate Splitted HTML Files
 #
 ###############################################################################
 
@@ -907,20 +923,29 @@ sub write_files {
 
         my $file_i= 0;
         for my $fileinfo (@$files) {
-            my ($ftype, $source, $file, $file_no)= ($fileinfo->{'ftype'}, $fileinfo->{'source'}, $fileinfo->{'file'}, $fileinfo->{'file_no'});
+            my ($ftype, $source, $file, $file_no, $lines, $lines_per_part)=
+                        ($fileinfo->{'ftype'}, $fileinfo->{'source'},
+                        $fileinfo->{'file'}, $fileinfo->{'file_no'},
+                        $fileinfo->{'lines'}, $fileinfo->{'lines_per_part'});
             my $infile= $sources{$source} . '/' . $file;
-            my $outfile= "$output_path/raxref-$project_name/file$file_no.html";
-
+            
             mkdir("$output_path/raxref-$project_name");
 
-            my $extra= '';
-            if (-e $outfile) {
+            my $extra;
+            my @outfiles;
+            for (my $l= 0; $l < $lines; ) {
+                my $file= "$output_path/raxref-$project_name/file$file_no-" . ($l / $lines_per_part) .".html";
+                my $from= $l;
+                $l += $lines_per_part;
+                $l= $lines if $l > $lines;
+                push @outfiles, [ $file, $from, $l - 1 ];
+                $extra= ' (missing)' unless -e $file;
+            }
+
+            unless ($extra) {
                 next unless defined $build_sections{$section};
 
                 $extra= ' (forced)';
-            }
-            else {
-                $extra= ' (missing)';
             }
             
             printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
@@ -991,10 +1016,14 @@ sub write_files {
                 push @result, "<li$class>$_</li>";
             }
 
-            # $code= "<!-- $source" . ":$file --><div class='code'>\n<ol>" . join("\n", @result) . "</ol>\n</div>";
-            $code= "<!-- $source" . ":$file -->" . join("\n", @result);
+            # $code= "<!-- $source" . ":$file -->" . join("\n", @result);
 
-            write_file($outfile, $code);
+            for my $out (@outfiles) {
+                $code= "<!-- $source" . ":$file, lines " . ($out->[1] + 1) . ".." . ($out->[2] + 1) . " of $lines -->"
+                    . join("\n", @result[$out->[1] .. $out->[2]]);
+                write_file($out->[0], $code);
+            }
+
             $file_i++;
         }
         if ($file_i || defined $build_sections{$section}) {

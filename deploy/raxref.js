@@ -14,6 +14,46 @@ jQuery(function($) {
     var activeSlot= null;
     var activeElement= null;
 
+    // Many colours are tedious in static css. Let's add the styles dynamically
+    var addColorCss= function() {
+
+        var hsvToHtml= function(h, s, v) {
+            var hi = Math.floor((h % 360)/ 60);
+            var f = (h % 360) / 60 - hi;
+            var p = v * (1 - s);
+            var q = v * (1 - s * f);
+            var t = v * (1 - s * (1 - f));
+            var rgb= [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][hi];
+            return 'RGB(' + Math.floor(rgb[0] * 255) + ',' + Math.floor(rgb[1] * 255) + ',' + Math.floor(rgb[2] * 255) + ')';
+        };
+
+        // The %dd is the s and v part of the color. HSV is then calculated
+        // with the formula d * 0.11 + 0.01, resulting in [0.01 .. 1]
+        var styles= [
+            '.slot.%t .slot-bg            { background-color: %99; }',
+            '.slot.%t .slot-border        { border-color: %75 !important; }',
+            '.slot.active.%t .slot-border { border-color: %77 !important; }',
+            '.slot.active.%t .slot-bg     { background-color: %58 !important; }',
+            '.slot.%t h1                  { color: %58; }',
+            '.slot .to-%t b               { background-color: %49; }',
+            '.slot .to-%t b.over          { background-color: %77; }',
+            '.slot .to-%t b.hover         { background-color: %99; }',
+        ];
+
+        var slots= [ 'project', 'section', 'file', 'xref' ];
+
+        var css= '';
+        for (var style_i in styles) {
+            var style= styles[style_i];
+            for (var slot_i in slots) {
+                css += style.replace(/%t/, slots[slot_i]).replace(/%(\d)(\d)/, function(m) {
+                    return hsvToHtml(slot_i * 60 + 40, m[1] * 0.11 + 0.01, m[2] * 0.11 + 0.01);
+                }) + '\n';
+            }
+        }
+        $('head').append($("<style type='text/css'>" + css + "</style>"));
+    };
+
     var Slot= function(type) {
 
         // BTW: This is the most packer-friendly way writing JS Classes I found:
@@ -28,7 +68,7 @@ jQuery(function($) {
 
         // The HTML here turned out a bit complicated, but I find it REALLY hard to make CSS work with percentage values
         // even on modern browsers.
-        var newDiv= $("<div id='slot" + id + "' class='slot " + type + " filter-onx' ref='" + type + "'>"
+        var newDiv= $("<div id='slot" + id + "' class='slot " + type + "' ref='" + type + "'>"
                         + "<div class='slot-i slot-bg round-corners'>"
                             + "<div class='body-c slot-border round-corners'>"
                                 + "<div class='head-cc'><div class='head-c'><div class='head'></div></div></div>"
@@ -327,7 +367,7 @@ jQuery(function($) {
                 result.push("<p><b ref='" + section_i + "'>" + section[1] + "</b></p>");
             }
 
-            showText(htmlize(project_title), "<div class='sections'>" + result.join("") + "</div>");
+            showText(htmlize(project_title), "<div class='sections to-section'>" + result.join("") + "</div>");
         };
 
         var showSection= function(section_i) {
@@ -369,6 +409,8 @@ jQuery(function($) {
         return this;
     };
 
+    addColorCss();
+
     Slot.nextId= 0;
 
     var slotX= new Slot('xref');
@@ -376,7 +418,7 @@ jQuery(function($) {
     var slotS= new Slot('section');
     var slotP= new Slot('project');
 
-    slotP.showProject(  );
+    slotP.showProject();
 
     // showFile(slotF, 120);
     // load: function( url, params, callback )

@@ -16,8 +16,6 @@ body {
     padding: 0;
     margin: 0;
     height: 100%;
-
-    x-line-height: 100%;
 }
 
 /*  Switch to sane box model. Without this, AFAIK there is NO way to work
@@ -27,7 +25,6 @@ div {
     box-sizing: border-box;
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
-
 }
 
 .round-corners {
@@ -150,47 +147,9 @@ div {
     display: inherit;
 }
 
-.filter-on .body-c {
-    xx-top: -5.5em;
-    x-padding-top: 7.5em;
-}
-
 /*****************************************************************************
     Slot type specific stuff
  *****************************************************************************/
-
-/* #6994E3 #2866D7 #1C4796 #0A1936 #005AFF project  blue */
-/* #69E3B8 #28D799 #1C966B #0A3626 #00FFA5 section  cyan */
-/* #94E369 #66D728 #47961C #19360A #5AFF00 file     lime green */
-/* #E3B869 #D79928 #966B1C #36260A #FFA500 xref     orange */
-/* #B869E3 #9928D7 #6B1C96 #260A36 #A500FF unused   violet */
-/* #E36994 #D72866 #961C47 #360A19 #FF005A unused   pink */
-/* #A6A6A6 #808080 #595959 #202020 #808080 unused   grey */
-
-.slot.project  .slot-bg { background-color: #6994E3; }
-.slot.section  .slot-bg { background-color: #69E3B8; }
-.slot.file     .slot-bg { background-color: #94E369; }
-.slot.xref     .slot-bg { background-color: #E3B869; }
-
-.slot.project  .slot-border { border-color: #1C4796 !important; }
-.slot.section  .slot-border { border-color: #1C966B !important; }
-.slot.file     .slot-border { border-color: #47961C !important; }
-.slot.xref     .slot-border { border-color: #966B1C !important; }
-
-.slot.active.project  .slot-border { border-color: #0A1936 !important; }
-.slot.active.section  .slot-border { border-color: #0A3626 !important; }
-.slot.active.file     .slot-border { border-color: #19360A !important; }
-.slot.active.xref     .slot-border { border-color: #36260A !important; }
-
-.slot.active.project  .slot-bg { background-color: #005AFF !important; }
-.slot.active.section  .slot-bg { background-color: #00FFA5 !important; }
-.slot.active.file     .slot-bg { background-color: #5AFF00 !important; }
-.slot.active.xref     .slot-bg { background-color: #FFA500 !important; }
-
-.slot.project  h1 { color: #0A1936; }
-.slot.section  h1 { color: #0A3626; }
-.slot.file     h1 { color: #19360A; }
-.slot.xref     h1 { color: #36260A; }
 
 .slot b {
     font-weight: normal;
@@ -203,13 +162,8 @@ div {
 .slot b.over {
 
     /* FIXME: color */
-    background-color: #F66 !important;
+    xx-background-color: #F66 !important;
 }
-
-x .slot.project  { background-color: #2866D7; }
-x .slot.section  { background-color: #28D799; }
-x .slot.file     { background-color: #66D728; }
-x .slot.xref     { background-color: #D79928; }
 
 .slot.project  { width: 12%; }
 .slot.section  { width: 16%; }
@@ -219,7 +173,7 @@ x .slot.xref     { background-color: #D79928; }
 .slot .hover {
 
     /* FIXME: color */
-    background-color: #BBF !important;
+    x-background-color: #BBF !important;
 }
 
 .slot h1 {

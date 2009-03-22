@@ -15,7 +15,7 @@ jQuery(function($) {
     var activeElement= null;
 
     // Many colours are tedious in static css. Let's add the styles dynamically
-    var addColorCss= function() {
+    var initColorCss= function() {
 
         var hsvToHtml= function(h, s, v) {
             var hi = Math.floor((h % 360)/ 60);
@@ -260,7 +260,7 @@ jQuery(function($) {
             var xref_re= new RegExp("(<b class='_" + token + ")(')", "g");
 
             var fetchedFunc= function(file_no, line_no, line) {
-                line= line.replace(/^<li[^>]+>/, '').replace(/<\/li>$/, '')     // remove <li> and </li>
+                line= line.replace(/^<li[^>]*>/, '').replace(/<\/li>$/, '')     // remove <li> and </li>
                     .replace(xref_re, '$1 link to-file$2');
                 var spanId= 'q' + id + '-' + file_no + '-' + line_no;
                 $('#' + spanId).html(line);
@@ -430,7 +430,7 @@ jQuery(function($) {
         return this;
     };
 
-    addColorCss();
+    initColorCss();
 
     Slot.nextId= 0;
 
@@ -479,6 +479,18 @@ jQuery(function($) {
         return s.replace(/([^-a-zA-Z0-9_])/g, '\\$1');
     };
 
+    var markVisited= function($el) {
+
+        // TODO: Visited link. Neat idea, but have to work this one out...
+        $el.css('background-color', 'yellow');
+    };
+
+    var clickLineNo= function($el) {
+        markVisited($el);
+        var pos= $el.attr('rel').split(':');
+        if (pos.length > 1) slotF.showFile(pos[0], pos[1]);
+    };
+
     // Code Token behaviours
     $('.code b, .code .link')
         .live('mouseover', function(ev) {
@@ -490,20 +502,20 @@ jQuery(function($) {
         .live('click', function(ev) {
             if (ev.button) return;
 
-            // TODO: Visited link. Neat idea, but have to work this one out...
-            $(this).css('background-color', 'yellow');
-
-            slotX.showXref($(this).text());
+            var $this= $(this);
+            if ($this.hasClass('link')) {
+                clickLineNo($('.line_no', $this.closest('li')));
+                return;
+            }
+            markVisited($this);
+            slotX.showXref($this.text());
         })
     ;
 
     // Code Line_no behaviours
     $('.code li .line_no')
         .live('click', function(ev) {
-            if (ev.button) return;
-            $(this).css('background-color', 'yellow');
-            var pos= $(this).attr('rel').split(':');
-            slotF.showFile(pos[0], pos[1]);
+            if (!ev.button) clickLineNo($(this));
         })
     ;
 
@@ -524,7 +536,7 @@ jQuery(function($) {
     $('.filter .closer')
         .live("click", function(ev) {
             if (ev.button) return;
-            var el= $(this).parents('.slot');
+            var el= $(this).closest('.slot');
             var slot= el.data("slot");
             if (!slot) return;
             slot.showFilter(false);

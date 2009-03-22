@@ -104,11 +104,17 @@ jQuery(function($) {
             return $('#slot' + id + ' .search-input').val('').blur();
         };
 
-        var updateFilter= function() {
-            var search= $('#slot' + id + ' .search-input').val().toLowerCase();
+        var _updateFilter= function() {
+            var search= $('#slot' + id + ' .search-input').val().toLowerCase().replace(/^\s*(.*?)\s*$/, '$1');
+            if (search == '') {
+                $('#slot' + id + ' .body li').css('display', 'list-item')
+                    .each(function(el_i, el) { el.value= el_i + 1; });  // I don't think it's possible to reset the value to "nothing"
+                return;              
+            }
+
             var $lastLiH1= null;
             var foundOne= false;
-            
+
             var checkLastLiH1= function($el) {
                 if (!$lastLiH1 || foundOne) return false;
                 $lastLiH1.css('display', 'none');
@@ -120,7 +126,7 @@ jQuery(function($) {
 
                 var $el= $(el);
                 if ($('h1', $el).length) {
-                    $el.css('display', 'inherit');
+                    $el.css('display', 'list-item');
                     if (checkLastLiH1($el)) return;
                     $lastLiH1= $el;
                     foundOne= false;
@@ -135,10 +141,20 @@ jQuery(function($) {
                     $el.css('display', 'none');
                     return;
                 }
-                $el.css('display', 'inherit');
+                $el.css('display', 'list-item').attr('value', el_i + 1);
                 foundOne= true;
             });
             checkLastLiH1();
+        };
+
+        var hUpdateFilter;
+
+        var updateFilter= function() {
+            if (hUpdateFilter) clearTimeout(hUpdateFilter);
+            hUpdateFilter= setTimeout(function() {
+                hUpdateFilter= null;
+                _updateFilter();
+            }, 300);
         };
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {

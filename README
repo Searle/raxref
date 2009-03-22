@@ -42,3 +42,5 @@ TODO misc, unsorted:
 - Xref: Load visible files first
 - Find identifiers: list least indented first
 - "--clean" option to clean output directory
+- Make several Async-GETs (3?) simultaniously
+- Support JavaDoc

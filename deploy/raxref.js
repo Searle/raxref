@@ -27,17 +27,17 @@ jQuery(function($) {
             return 'RGB(' + Math.floor(rgb[0] * 255) + ',' + Math.floor(rgb[1] * 255) + ',' + Math.floor(rgb[2] * 255) + ')';
         };
 
-        // The %dd is the s and v part of the color. HSV is then calculated
+        // The %dd is the S and V part of the color. HSV is then calculated
         // with the formula d * 0.11 + 0.01, resulting in [0.01 .. 1]
         var styles= [
-            '.slot.%t .slot-bg            { background-color: %99; }',
-            '.slot.%t .slot-border        { border-color: %75 !important; }',
-            '.slot.active.%t .slot-border { border-color: %77 !important; }',
-            '.slot.active.%t .slot-bg     { background-color: %58 !important; }',
-            '.slot.%t h1                  { color: %58; }',
-            '.slot .to-%t b               { background-color: %49; }',
-            '.slot .to-%t b.over          { background-color: %77; }',
-            '.slot .to-%t b.hover         { background-color: %99; }',
+            '.slot.%t .slot-bg            { background-color: %49; }',
+            '.slot.%t .slot-border        { border-color: %49 !important; }',
+            '.slot.active.%t .slot-bg     { background-color: %99 !important; }',
+            '.slot.active.%t .slot-border { border-color: %73 !important; }',
+            '.slot.%t h1                  { color: %73; }',
+            '.slot .to-%t b,       div.slot .link.to-%t        { background-color: %19; }',  // The "div." makes the style more important
+            '.slot .to-%t b.over,  div.slot .link.over.to-%t   { background-color: %99 !important; }',  // Mouse-over
+            '.slot .to-%t b.xover, div.slot .link.xover.to-%t  { background-color: %59; }',  // "xover" is for highlighting same tokens
         ];
 
         var slots= [ 'project', 'section', 'file', 'xref' ];
@@ -46,7 +46,7 @@ jQuery(function($) {
         for (var style_i in styles) {
             var style= styles[style_i];
             for (var slot_i in slots) {
-                css += style.replace(/%t/, slots[slot_i]).replace(/%(\d)(\d)/, function(m) {
+                css += style.replace(/%t/g, slots[slot_i]).replace(/%(\d)(\d)/g, function(m) {
                     return hsvToHtml(slot_i * 60 + 40, m[1] * 0.11 + 0.01, m[2] * 0.11 + 0.01);
                 }) + '\n';
             }
@@ -228,19 +228,24 @@ jQuery(function($) {
             var result= [];
             for (var xrefList_i in xrefList) {
                 var xref= xrefList[xrefList_i];
-                result.push("<ol><li><h1>" + htmlize_filename(filename(xref.file_no)) + "</h1></li>");
+                result.push("<ol><li><h1>", htmlize_filename(filename(xref.file_no)), "</h1></li>");
                 for (var line_no_i in xref.line_nos) {
                     var line_no= xref.line_nos[line_no_i];
-                    var spanId= 'q' + id + '-' + xref.file_no + '-' + line_no;
-                    var line= '<span id="' + spanId + '"><span class="loading">Loading</span></span>';
-                    result.push("<li><span class='line_no' rel='" + xref.file_no + ':' + line_no + "'>" + line_no + ".</span>" + line + "</li>");
+                    result.push("<li>",
+                        "<span class='line_no link to-file' rel='", xref.file_no, ':', line_no, "'>", line_no, ".</span>",
+                        "<span id='q", id, '-', xref.file_no, '-', line_no, "'><span class='loading'>Loading</span></span>",
+                        "</li>");
                 }
                 result.push("</ol>");
             }
-            showText("Xref for '" + token + "'", "<div class='code xref'>" + result.join("\n") + "</div>");
+            showText("Xref for '" + token + "'", "<div class='code xref to-xref'>" + result.join("") + "</div>");
+
+            // Change click on token to click on line
+            var xref_re= new RegExp("(<b class='_" + token + ")(')", "g");
 
             var fetchedFunc= function(file_no, line_no, line) {
-                line= line.replace(/^<li[^>]+>/, '').replace(/<\/li>$/, '');      // remove <li> and </li>
+                line= line.replace(/^<li[^>]+>/, '').replace(/<\/li>$/, '')     // remove <li> and </li>
+                    .replace(xref_re, '$1 link to-file$2');
                 var spanId= 'q' + id + '-' + file_no + '-' + line_no;
                 $('#' + spanId).html(line);
             };
@@ -321,7 +326,7 @@ jQuery(function($) {
             var file_split= files[file_no][0];
             var start= 0;
             var part_no= 0;
-            var collected= [ "<h1>", htmlize_filename(filename(file_no)), "</h1><div class='code'><ol>" ];
+            var collected= [ "<h1>", htmlize_filename(filename(file_no)), "</h1><div class='code to-xref'><ol>" ];
 
             var _done= function() {
                 line_no= line_no > 0 ? line_no : 0;
@@ -394,7 +399,7 @@ jQuery(function($) {
             }
             if (last_path) result.push("</ol>");
 
-            showText("Section '" + section[1] + "'", "<div class='section'>" + result.join("") + "</div>");
+            showText("Section '" + section[1] + "'", "<div class='section to-file'>" + result.join("") + "</div>");
         };
 
         this.id= id;    // read only
@@ -426,44 +431,48 @@ jQuery(function($) {
 
     $('.slot')
         .live('mousedown', function(ev) {
-            $(this).data("slot").activate();
+            if (!ev.button) $(this).data("slot").activate();
         })
     ;
 
     // General Hover
-    $('.slot b, .code li .line_no')
+    $('.slot b, .slot .link')
         .live('mouseover', function(ev) {
-            $(this).addClass("hover");
+            $(this).addClass("over");
         })
         .live('mouseout', function(ev) {
-            $(this).removeClass("hover");
+            $(this).removeClass("over");
         })
     ;
 
     // Project behaviours
     $('.project b')
         .live('click', function(ev) {
-            slotS.showSection($(this).attr("ref"));
+            if (!ev.button) slotS.showSection($(this).attr("ref"));
         })
     ;
 
     // Section behaviours
     $('.section b')
         .live('click', function(ev) {
-            slotF.showFile($(this).attr("ref"));
+            if (!ev.button) slotF.showFile($(this).attr("ref"));
         })
     ;
 
+    var quotemeta= function(s) {
+        return s.replace(/([^-a-zA-Z0-9_])/g, '\\$1');
+    };
+
     // Code Token behaviours
-    $('.code b')
+    $('.code b, .code .link')
         .live('mouseover', function(ev) {
-            // var s= this.className.split(/\s+/)[0];
-            $("._" + $(this).text()).addClass("over");
+            $("._" + quotemeta($(this).text())).addClass("xover");
         })
         .live('mouseout', function(ev) {
-            $("._" + $(this).text()).removeClass("over");
+            $("._" + quotemeta($(this).text())).removeClass("xover");
         })
         .live('click', function(ev) {
+            if (ev.button) return;
 
             // TODO: Visited link. Neat idea, but have to work this one out...
             $(this).css('background-color', 'yellow');
@@ -475,6 +484,7 @@ jQuery(function($) {
     // Code Line_no behaviours
     $('.code li .line_no')
         .live('click', function(ev) {
+            if (ev.button) return;
             $(this).css('background-color', 'yellow');
             var pos= $(this).attr('rel').split(':');
             slotF.showFile(pos[0], pos[1]);
@@ -497,6 +507,7 @@ jQuery(function($) {
 
     $('.filter .closer')
         .live("click", function(ev) {
+            if (ev.button) return;
             var el= $(this).parents('.slot');
             var slot= el.data("slot");
             if (!slot) return;
@@ -510,7 +521,7 @@ jQuery(function($) {
         if (activeSlot) {
 
             // Ugh. Keycodes are alchemy. I just can't be bothered to fix the special cases...
-            if (!activeElement && ev.keyCode >= 48 && ev.keyCode < 91) {
+            if (!activeElement && ev.keyCode >= 48 && ev.keyCode < 91 && !ev.altKey && !ev.ctrlKey) {
                 activeSlot.showFilter(true).focus();
                 return;
             }

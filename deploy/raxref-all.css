@@ -217,7 +217,6 @@ div {
 }
 
 .code li .line_no {
-    background-color: #E4E4E4;
     display: block;
     float: left;
     width: 4em;
@@ -230,14 +229,13 @@ div {
     color: #888;
 }
 
-/** POD STUFF **/
+/** DOC STUFF **/
 
 .code .doc {
     border-left: 0.5em solid #FC7;
     padding-left: 1em;
 }
 
-/* FIXME: Rename to POD */
 .code .doc-start {
     padding-top: 0.5em;
     margin-top: 0.5em;

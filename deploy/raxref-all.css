@@ -151,32 +151,16 @@ div {
     Slot type specific stuff
  *****************************************************************************/
 
-.slot b {
-    font-weight: normal;
-
-    /* FIXME: color */
-    background-color: #E4E4E4;
-    cursor: pointer;
-}
-
-.slot b.over {
-
-    /* FIXME: color */
-    xx-background-color: #F66 !important;
-}
-
 .slot.project  { width: 12%; }
 .slot.section  { width: 16%; }
 .slot.file     { width: 38%; }
 .slot.xref     { width: 34%; }
 
-.slot .hover {
+/*****************************************************************************
+    Body
+ *****************************************************************************/
 
-    /* FIXME: color */
-    x-background-color: #BBF !important;
-}
-
-.slot h1 {
+.body h1 {
     font-size: 123%;
     font-weight: normal;
 
@@ -185,13 +169,18 @@ div {
     margin-bottom: 0.25em;
 }
 
-/* FIXME: .slot.xref */
-
-.body .xref ol, .body .section ol {
-    padding: 0;
+.body b {
+    font-weight: normal;
+    xx-background-color: #E4E4E4;
+    cursor: pointer;
 }
 
-.body .xref li, .body .section ol {
+.body .code ol {
+    padding-left: 4em;
+}
+
+.body .simple-ol ol {
+    padding: 0;
     list-style-position: inside;
     list-style-type: none;
 }

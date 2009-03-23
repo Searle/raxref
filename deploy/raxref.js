@@ -254,7 +254,7 @@ jQuery(function($) {
                 }
                 result.push("</ol>");
             }
-            showText("Xref for '" + token + "'", "<div class='code xref to-xref'>" + result.join("") + "</div>");
+            showText("Xref for '" + token + "'", "<div class='code xref simple-ol to-xref'>" + result.join("") + "</div>");
 
             // Change click on token to click on line
             var xref_re= new RegExp("(<b class='_" + token + ")(')", "g");
@@ -381,16 +381,6 @@ jQuery(function($) {
             _next();
         };
 
-        var showProject= function() {
-            var result= [];
-            for (var section_i in sections) {
-                var section= sections[section_i];
-                result.push("<p><b ref='" + section_i + "'>" + section[1] + "</b></p>");
-            }
-
-            showText(htmlize(project_title), "<div class='sections to-section'>" + result.join("") + "</div>");
-        };
-
         var showSection= function(section_i) {
             var section= sections[section_i];
             var result= [];
@@ -415,7 +405,17 @@ jQuery(function($) {
             }
             if (last_path) result.push("</ol>");
 
-            showText("Section '" + section[1] + "'", "<div class='section to-file'>" + result.join("") + "</div>");
+            showText("Section '" + section[1] + "'", "<div class='section simple-ol to-file'>" + result.join("") + "</div>");
+        };
+
+        var showProject= function() {
+            var result= [];
+            for (var section_i in sections) {
+                var section= sections[section_i];
+                result.push("<li><b ref='" + section_i + "'>" + section[1] + "</b></li>");
+            }
+
+            showText(htmlize(project_title), "<div class='sections simple-ol to-section'><ol>" + result.join("") + "</ol></div>");
         };
 
         this.id= id;    // read only

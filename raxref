@@ -1109,44 +1109,49 @@ Use C<raxref --man> for more information.
 
 TBD! Snippets:
                                                                    
-B<Raxref> was originally written to build a browsable cross reference for the
-Parrot project. But you may use it for any project, because it's not Parrot-specific
-at all, except that there's a bundled config file suitable for Parrot.
+B<Raxref> was originally written to build a browsable cross reference
+for the Parrot project. But you may use it for any project, because it's
+not Parrot-specific at all, except that there's a bundled config file
+suitable for Parrot.
 
 The default config file is B<raxref.conf>.
 
-To force a build of certain sections, add them to the command line, or use the '--all' switch
-to rebuild everything. '--all' will also rebuild all caches.
+To force a build of certain sections, add them to the command line, or
+use the '--all' switch to rebuild everything. '--all' will also rebuild
+all caches.
 
 =head2 CONFIG FILES
 
-The config files describe your project repository. Usually two lines will be sufficient:
+The config files describe your project repository. Usually two lines
+will be sufficient:
 
   include conf/std.conf
   source myproject /home/me/projects/myproject
                                                         
-This tells raxref that you want to use the standard filtetype definitions from 'std.conf'
-and where to find the sources of your project.
+This tells raxref that you want to use the standard filtetype
+definitions from 'std.conf' and where to find the sources of your
+project.
 
-Running B<raxref -c myproject.conf> will produce the cross reference information and
-store it in the directory 'output'.
+Running B<raxref -c myproject.conf> will produce the cross reference
+information and store it in the directory 'output'.
 
-If you want to describe your project in more detail, this are the directives that B<Raxref>
-will accept in conf files:
+If you want to describe your project in more detail, this are the
+directives that B<Raxref> will accept in conf files:
 
 =over
 
 =item C<project name title>
 
-Tells B<Raxref> how you call your project.
-The project identifier <name> is used for file names and such, so keep it unique.
-The <title> is in the UI.
+Tells B<Raxref> how you call your project. The project identifier <name>
+is used for file names and such, so keep it unique. The <title> is in
+the UI.
 
 =item C<source name path>
 
-This is where your source code lives. You can have multiple C<source> directives. Parameters
-of the C<includes> and C<excludes> directives must then be prefixed with the C<source> name
-followed by a colon, e.g. C<includes inclsrc:/includes>.
+This is where your source code lives. You can have multiple C<source>
+directives. Parameters of the C<includes> and C<excludes> directives
+must then be prefixed with the C<source> name followed by a colon, e.g.
+C<includes inclsrc:/includes>.
 
 =item C<output_path path>
 

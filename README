@@ -1,37 +1,74 @@
 
 Raxref - Simple, lightweight and fast Cross Referencing
+=======================================================
 
-This is the first version, but it works very good.
-And it's REALLY REALLY simple to use, I swear!
+It's the first version, but it works very good.
 
-.
-.
-TBD
-.
-.
 
-Stuff:
-======
-- Only tested with FF3 3.0.7, Safari 3.2.2 and Chrome 2 !!!
-- Raxref is written in Perl 5 and JavaScript
-- Made to understand the Parrot Project
-- Makes use of some CSS 2/3 features that older browsers don't support
+And REALLY REALLY simple to use - this is how it goes:
+
+1. Call Raxref and tell it where your source files are and where to put
+   the generated files.
+2. Point your web browser to the generated main html file.
+
+That's it. Enjoy your new web application!
+
+
+Some Details? Ok:
+
+Raxref was inspired by tools like LXR, LXRng and MXR. These are all
+great tools but are rather complicated to use, partly because of the
+many additional requirements or because they're to specialized (MXR).
+
+Raxref only needs Perl to run. It can cope with any kind of source
+language because it's dead stupid and doesn't try to understand the code
+it's cross referencing.
+
+Raxref consists of two simple parts, an analyzer (in Perl) and a runtime
+(in JavaScript).
+
+The analyzer goes through your source files and takes hold on everything
+that looks like a token. Some filtering is done, and some goodies like
+POD detection. Then a load of files is written to the output directory,
+consisting of a main html file, the runtime requirements and lots of
+data files. This is done pretty fast on the first run, and even faster
+in later runs because of caching.
+
+The generated web application includes the runtime. Basicly you just
+have to open it with a browser(*) and simply use it. You'll see different
+panels showing the project, project sections, source files, and the
+cross references. Every panel type has a color code and links to a panel
+have the same color. You may resize the panels.
+
+Optionally, you can write a small configuration file inside of which you
+may define different sections of your project. You'll find examples in
+the "conf" directory. For more information, type "./rabak --man".
+
+
+(*) Raxref makes use of some CSS 2/3 features that older browsers don't
+support. Tested with FF3 3.0.7, Safari 3.2.2 and Chrome 2. Will propably
+not work with any IEs, they are rubbish anyway.
+
 
 Licences:
 =========
+
 Please look at the LICENSE* files
+
 
 TODO by priority:
 =================
-- JS: Add Slot resizing
+
 - Add "include" detection
 - JS: Add "new source window", "new xref window"
 - Add Project Meta Info e.g 'meta author Blah', 'meta url parrot.org'...
 - Add a simple possibility to build a rexref web app without a conf file
   e.g. raxref --source some/path (auto-include conf/std.conf)
 
+
 TODO misc, unsorted:
 ====================
+
 - Keyword-search with auto-completition
 - Add Project description
 - HTML Encoding
@@ -50,7 +87,10 @@ TODO misc, unsorted:
 - Make several Async-GETs (3?) simultaniously
 - Support JavaDoc
 
+
 DONE:
 =====
+
 - CSS: Finish color coding
 - Add Xref-Keyword Search
+- JS: Add Slot resizing

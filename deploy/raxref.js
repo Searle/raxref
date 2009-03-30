@@ -88,6 +88,7 @@ jQuery(function($) {
         // The HTML here turned out a bit complicated, but I find it REALLY hard to make CSS work with percentage values
         // even on modern browsers.
         var newDiv= $("<div id='slot" + id + "' class='slot " + type + "' ref='" + type + "'>"
+                    +     "<div class='sizer'></div>"
                     +     "<div class='slot-i slot-bg round-corners'>"
                     +         "<div class='body-c slot-border round-corners'>"
                     +             "<div class='head-cc'><div class='head-c'><div class='head'></div></div></div>"
@@ -101,10 +102,31 @@ jQuery(function($) {
         $("#slots").prepend(newDiv);
         $("#slot" + id).data("slot", me);
 
+        var sizerOfs;
+
+        $("#slot" + id + " .sizer").draggable({
+//            scroll: true,
+//            containment: '#slots',
+            helper: 'clone',
+            axis: 'x',
+            stack: { group: '#slots', min: 100 },
+            start: function(event, ui) {
+                sizerOfs= $("#slot" + id).width() - event.pageX;
+            },
+            drag: function(event, ui) {
+                var w= sizerOfs + event.pageX;
+                if (w < 40) {
+                    $("#slot" + id).width(40).find(".body").hide();
+                    return;
+                }
+                $("#slot" + id).width(w).find(".body").show();
+            },
+        });
+
         // TODO: Use this function on unload
         var _destroy= function() {
             me= null;
-            $("#slot" + id).data("slot", me);
+            $("#slot" + id).data("slot", null);
         };
 
         var activate= function() {

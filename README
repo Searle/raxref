@@ -11,14 +11,18 @@ TBD
 .
 
 Stuff:
-
+======
 - Only tested with FF3 3.0.7, Safari 3.2.2 and Chrome 2 !!!
-
 - Raxref is written in Perl 5 and JavaScript
 - Made to understand the Parrot Project
 - Makes use of some CSS 2/3 features that older browsers don't support
 
+Licences:
+=========
+Please look at the LICENSE* files
+
 TODO by priority:
+=================
 - JS: Add Slot resizing
 - Add "include" detection
 - JS: Add "new source window", "new xref window"
@@ -27,6 +31,7 @@ TODO by priority:
   e.g. raxref --source some/path (auto-include conf/std.conf)
 
 TODO misc, unsorted:
+====================
 - Keyword-search with auto-completition
 - Add Project description
 - HTML Encoding
@@ -46,5 +51,6 @@ TODO misc, unsorted:
 - Support JavaDoc
 
 DONE:
+=====
 - CSS: Finish color coding
 - Add Xref-Keyword Search

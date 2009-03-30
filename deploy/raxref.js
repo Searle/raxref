@@ -60,6 +60,18 @@ jQuery(function($) {
         $('head').append($("<style type='text/css'>" + css + "</style>"));
     };
 
+    var DelayedFunc= function(ms, fn) {
+        var hTimer;
+
+        return function(arg) {
+            if (hTimer) clearTimeout(hTimer);
+            hTimer= setTimeout(function() {
+                hTimer= null;
+                fn(arg);
+            }, ms);
+        };
+    };
+
     var Slot= function(type) {
 
         // BTW: This is the most packer-friendly way writing JS Classes I found:
@@ -153,15 +165,9 @@ jQuery(function($) {
             checkLastLiH1();
         };
 
-        var hUpdateFilter;
-
-        var updateFilter= function() {
-            if (hUpdateFilter) clearTimeout(hUpdateFilter);
-            hUpdateFilter= setTimeout(function() {
-                hUpdateFilter= null;
-                _updateFilter();
-            }, 300);
-        };
+        var updateFilter= DelayedFunc(300, function() {
+            _updateFilter();
+        });
 
         var showText= function(titleHtml, bodyHtml, omitScrollToTop) {
             $('#slot' + id + ' .head').html(titleHtml);
@@ -414,6 +420,36 @@ jQuery(function($) {
             showText("Section '" + section[1] + "'", "<div class='section simple-ol to-file'>" + result.join("") + "</div>");
         };
 
+        var updateTokenSearch= DelayedFunc(300, function($this) {
+            var $tokenSearch= $this.closest(".token-search");
+            var search= $("input", $tokenSearch).val().toLowerCase();
+            var searchLength= search.length;
+            if (!searchLength) {
+                $('.results', $tokenSearch).html("");
+                return;
+            }
+            var result= [];
+            for (var token in tokens) {
+                var inx= token.indexOf(search);
+                if (inx >= 0) result.push([inx, token]);
+            }
+            result.sort(function(a, b) { return a[0] - b[0] || strcmp(a[1], b[1]) });
+            for (var i in result) {
+                if (i >= 10) {
+                    var more= result.length - i;
+                    result= result.slice(0, i);
+                    result.push(more + " more...");
+                    break;
+                }
+                var inx= result[i][0];
+                var token= result[i][1];
+                result[i]= "<b class='_" + quotemeta(token) + " link to-xref'>" + token.substr(0, inx)
+                    + "<i>" + token.substr(inx, searchLength) + "</i>"
+                    + token.substr(inx + searchLength) + "</b>";
+            }
+            $('.results', $tokenSearch).html(result.join("<br>"));
+        });
+
         var showProject= function() {
             var result= [];
             for (var section_i in sections) {
@@ -421,15 +457,17 @@ jQuery(function($) {
                 result.push("<li><b ref='" + section_i + "'>" + section[1] + "</b></li>");
             }
 
-            showText(htmlize(project_title), "<div class='sections simple-ol to-section'><ol>"
+            showText(htmlize(project_title), ""
+                + "<div class='token-search'>"
+                +   "<h1>Tokens</h1>"
+                +   "<form><input /></form>"
+                +   "<div class='results code'></div>"
+                + "</div>"
+                + "<div class='sections simple-ol to-section'><ol>"
                 +   "<li><h1>Sections</h1></li>"
                 +   result.join("")
                 + "</ol></div>"
-                + "<h1>Tokens</h1>"
-                + "<div class='token-search'>"
-                +   "<form><input /></form>"
-                +   "<div class='results code'></div>"
-                + "</div>");
+            );
         };
 
         this.id= id;    // read only
@@ -440,6 +478,7 @@ jQuery(function($) {
         this.showSection= showSection;
         this.showFilter= showFilter;
         this.updateFilter= updateFilter;
+        this.updateTokenSearch= updateTokenSearch;
 
         return this;
     };
@@ -549,33 +588,8 @@ jQuery(function($) {
 
     $('.token-search input')
         .keyup(function(ev) {
-            var $tokenSearch= $(this).closest(".token-search");
-            var search= this.value.toLowerCase();
-            var searchLength= search.length;
-            if (!searchLength) {
-                $('.results', $tokenSearch).html("");
-                return;
-            }
-            var result= [];
-            for (var token in tokens) {
-                var inx= token.indexOf(search);
-                if (inx >= 0) result.push([inx, token]);
-            }
-            result.sort(function(a, b) { return a[0] - b[0] || strcmp(a[1], b[1]) });
-            for (var i in result) {
-                if (i >= 10) {
-                    var more= result.length - i;
-                    result= result.slice(0, i);
-                    result.push(more + " more...");
-                    break;
-                }
-                var inx= result[i][0];
-                var token= result[i][1];
-                result[i]= "<b class='_" + quotemeta(token) + " link to-xref'>" + token.substr(0, inx)
-                    + "<i>" + token.substr(inx, searchLength) + "</i>"
-                    + token.substr(inx + searchLength) + "</b>";
-            }
-            $('.results', $tokenSearch).html(result.join("<br>"));
+            if (ev.keyCode == 27) this.value= "";
+            if (activeSlot) activeSlot.updateTokenSearch($(this));
         })
     ;
 

@@ -19,13 +19,12 @@ Stuff:
 - Makes use of some CSS 2/3 features that older browsers don't support
 
 TODO by priority:
-- CSS: Finish color coding
-- Add Xref-Keyword Search
 - JS: Add Slot resizing
-- Add a simple possibility to build a rexref web app without a conf file
-  e.g. raxref --source some/path (auto-include conf/std.conf)
+- Add "include" detection
 - JS: Add "new source window", "new xref window"
 - Add Project Meta Info e.g 'meta author Blah', 'meta url parrot.org'...
+- Add a simple possibility to build a rexref web app without a conf file
+  e.g. raxref --source some/path (auto-include conf/std.conf)
 
 TODO misc, unsorted:
 - Keyword-search with auto-completition
@@ -38,9 +37,14 @@ TODO misc, unsorted:
 - Fix the FIXMEs
 - Include Raxref Version in output
 - Add conf directive for sections: "filetypes c99 perl php html"
+- Implement conf directive "omit"
 - Make conf direcive 'token_threshold' section-specific
 - Xref: Load visible files first
-- Find identifiers: list least indented first
+- Xref: List least indented first
 - "--clean" option to clean output directory
 - Make several Async-GETs (3?) simultaniously
 - Support JavaDoc
+
+DONE:
+- CSS: Finish color coding
+- Add Xref-Keyword Search

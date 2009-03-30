@@ -156,6 +156,15 @@ div {
 .slot.file     { width: 38%; }
 .slot.xref     { width: 34%; }
 
+.slot.project .token-search input {
+    width: 90%;
+}
+
+.slot.project .token-search .results {
+    xx-border: 1px solid black;
+    padding: 2px;
+}
+
 /*****************************************************************************
     Body
  *****************************************************************************/
@@ -190,7 +199,7 @@ div {
  *****************************************************************************/
 
 .code {
-    line-height: 110%;
+    xx-line-height: 110%;
 }
 
 .code li {

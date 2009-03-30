@@ -14,6 +14,12 @@ jQuery(function($) {
     var activeSlot= null;
     var activeElement= null;
 
+    var strcmp= function(a, b) {
+        if (a > b) return 1;
+        if (a < b) return -1;
+        return 0;
+    };
+
     // Many colours are tedious in static css. Let's add the styles dynamically
     var initColorCss= function() {
 
@@ -69,14 +75,14 @@ jQuery(function($) {
         // The HTML here turned out a bit complicated, but I find it REALLY hard to make CSS work with percentage values
         // even on modern browsers.
         var newDiv= $("<div id='slot" + id + "' class='slot " + type + "' ref='" + type + "'>"
-                        + "<div class='slot-i slot-bg round-corners'>"
-                            + "<div class='body-c slot-border round-corners'>"
-                                + "<div class='head-cc'><div class='head-c'><div class='head'></div></div></div>"
-                                + "<div class='filter-c'><div class='filter round-corners'>"
-                                    + "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
-                                + "</div></div>"
-                            + "<div class='body slot-border round-corners'></div></div>"
-                        + "</div>"
+                    +     "<div class='slot-i slot-bg round-corners'>"
+                    +         "<div class='body-c slot-border round-corners'>"
+                    +             "<div class='head-cc'><div class='head-c'><div class='head'></div></div></div>"
+                    +             "<div class='filter-c'><div class='filter round-corners'>"
+                    +                 "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
+                    +             "</div></div>"
+                    +         "<div class='body slot-border round-corners'></div></div>"
+                    +     "</div>"
                     + "</div>");
 
         $("#slots").prepend(newDiv);
@@ -415,7 +421,15 @@ jQuery(function($) {
                 result.push("<li><b ref='" + section_i + "'>" + section[1] + "</b></li>");
             }
 
-            showText(htmlize(project_title), "<div class='sections simple-ol to-section'><ol>" + result.join("") + "</ol></div>");
+            showText(htmlize(project_title), "<div class='sections simple-ol to-section'><ol>"
+                +   "<li><h1>Sections</h1></li>"
+                +   result.join("")
+                + "</ol></div>"
+                + "<h1>Tokens</h1>"
+                + "<div class='token-search'>"
+                +   "<form><input /></form>"
+                +   "<div class='results code'></div>"
+                + "</div>");
         };
 
         this.id= id;    // read only
@@ -441,10 +455,6 @@ jQuery(function($) {
 
     slotP.showProject();
 
-    // showFile(slotF, 120);
-    // load: function( url, params, callback )
-    // $('#slot0 .body').load("files/1.html");
-
     $('.slot')
         .live('mousedown', function(ev) {
             if (!ev.button) $(this).data("slot").activate();
@@ -462,7 +472,7 @@ jQuery(function($) {
     ;
 
     // Project behaviours
-    $('.project b')
+    $('.project .sections b')
         .live('click', function(ev) {
             if (!ev.button) slotS.showSection($(this).attr("ref"));
         })
@@ -504,8 +514,11 @@ jQuery(function($) {
 
             var $this= $(this);
             if ($this.hasClass('link')) {
-                clickLineNo($('.line_no', $this.closest('li')));
-                return;
+                var $el= $('.line_no', $this.closest('li'));
+                if ($el.length) {
+                    clickLineNo($el);
+                    return;
+                }
             }
             markVisited($this);
             slotX.showXref($this.text());
@@ -522,7 +535,8 @@ jQuery(function($) {
     // FIXME: MUST be live()
 
     // Track active input element
-    $('input').focus(function(ev) {
+    $('input')
+        .focus(function(ev) {
             activeElement= this;
         })
         .blur(function(ev) {
@@ -530,6 +544,38 @@ jQuery(function($) {
         })
         .keyup(function(ev) {
             if (activeSlot) activeSlot.updateFilter();
+        })
+    ;
+
+    $('.token-search input')
+        .keyup(function(ev) {
+            var $tokenSearch= $(this).closest(".token-search");
+            var search= this.value.toLowerCase();
+            var searchLength= search.length;
+            if (!searchLength) {
+                $('.results', $tokenSearch).html("");
+                return;
+            }
+            var result= [];
+            for (var token in tokens) {
+                var inx= token.indexOf(search);
+                if (inx >= 0) result.push([inx, token]);
+            }
+            result.sort(function(a, b) { return a[0] - b[0] || strcmp(a[1], b[1]) });
+            for (var i in result) {
+                if (i >= 10) {
+                    var more= result.length - i;
+                    result= result.slice(0, i);
+                    result.push(more + " more...");
+                    break;
+                }
+                var inx= result[i][0];
+                var token= result[i][1];
+                result[i]= "<b class='_" + quotemeta(token) + " link to-xref'>" + token.substr(0, inx)
+                    + "<i>" + token.substr(inx, searchLength) + "</i>"
+                    + token.substr(inx + searchLength) + "</b>";
+            }
+            $('.results', $tokenSearch).html(result.join("<br>"));
         })
     ;
 
@@ -545,20 +591,22 @@ jQuery(function($) {
     ;
 
     // Catch keyboard inputs and display fast search
-    $(window).keydown(function(ev, a, b, c) {
-        if (activeSlot) {
+    $(window)
+        .keydown(function(ev) {
 
             // Ugh. Keycodes are alchemy. I just can't be bothered to fix the special cases...
-            if (!activeElement && ev.keyCode >= 48 && ev.keyCode < 91 && !ev.altKey && !ev.ctrlKey) {
+            if (activeSlot && !activeElement && ev.keyCode >= 48 && ev.keyCode < 91 && !ev.altKey && !ev.ctrlKey) {
                 activeSlot.showFilter(true).focus();
                 return;
             }
-            if (activeElement && ev.keyCode == 27) {
-                activeSlot.showFilter(false);
-                return;
+        })
+        .keyup(function(ev) {
+            if (activeSlot && activeElement && (ev.keyCode == 27 || (ev.keyCode == 8 && activeElement.value == ''))) {
+                if ($(ev.target).closest('.filter').length) activeSlot.showFilter(false);
+                return true;
             }
-        }
-    });
+        })
+    ;
 
     document.title= project_title + ' - Raxref';
 });

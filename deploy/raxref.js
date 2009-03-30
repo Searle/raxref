@@ -44,6 +44,7 @@ jQuery(function($) {
             '.slot .to-%t b,       div.slot .link.to-%t        { background-color: %19; }',  // The "div." makes the style more important
             '.slot .to-%t b.over,  div.slot .link.over.to-%t   { background-color: %99 !important; }',  // Mouse-over
             '.slot .to-%t b.xover, div.slot .link.xover.to-%t  { background-color: %59; }',  // "xover" is for highlighting same tokens
+            '.slot.%t .code .doc          { border-color: %49 }',
         ];
 
         var slots= [ 'project', 'section', 'file', 'xref' ];

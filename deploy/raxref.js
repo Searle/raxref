@@ -430,7 +430,7 @@ jQuery(function($) {
 
         var showSection= function(section_i) {
             var section= sections[section_i];
-            var file_re= /^((.*)\/)?([^\/]+)$/;
+            var file_re= /^((.*?)\/?)([^:\/]+)$/;
             var collects= [];
             for (var file_i in files) {
                 var file= files[file_i];

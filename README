@@ -62,9 +62,6 @@ TODO by priority:
 - Add "include" detection
 - JS: Add "new source window", "new xref window"
 - Add Project Meta Info e.g 'meta author Blah', 'meta url parrot.org'...
-- Add a simple possibility to build a rexref web app without a conf file
-  e.g. raxref --source some/path (auto-include conf/std.conf)
-
 
 TODO misc, unsorted:
 ====================
@@ -94,3 +91,5 @@ DONE:
 - CSS: Finish color coding
 - Add Xref-Keyword Search
 - JS: Add Slot resizing
+- Add a simple possibility to build a rexref web app without a conf file
+  e.g. raxref --source some/path (auto-include conf/std.conf)

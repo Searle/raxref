@@ -83,7 +83,7 @@ TODO misc, unsorted:
 - "--clean" option to clean output directory
 - Make several Async-GETs (3?) simultaniously
 - Support JavaDoc
-
+- JS: Add Slot dragging
 
 DONE:
 =====

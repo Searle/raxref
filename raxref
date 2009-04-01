@@ -352,8 +352,8 @@ sub read_conf {
 
     init();
 
-    $new_section->('OMIT',   'Omitted paths', 1, 1);
-    $new_section->('OTHER',  'Other',         0, 1);
+    $new_section->('OMIT',  ' OMIT',  1, 1);
+    $new_section->('OTHER', ' OTHER', 0, 1);
 
     my $result= $include->($file, $content);
     if ($result) {
@@ -527,6 +527,11 @@ sub collect_files {
         push @new_sections, $section;
     }
     @sections= @new_sections;
+
+    # Give 'OTHER' section a reasonable name if the user hasn't
+    if (defined $sections{'OTHER'} && substr($sections{'OTHER'}{'title'}, 0, 1) eq ' ') {
+        $sections{'OTHER'}{'title'}= scalar @sections == 1 ? "All files" : "Other files";
+    }
 
     printnl("Collecting files: finished, found $files_count files");
 }

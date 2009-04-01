@@ -295,7 +295,7 @@ sub read_conf {
             if ($line =~ /^omit$/) {
                 return 1 if $not_section_context->();
 
-                printnl("$file, line $line_i: WARNING! 'omit' not implemented yet!");
+                $warn->("'omit' not implemented yet");
 
                 $sections{$section}{omit}= 1;
                 next;
@@ -305,7 +305,7 @@ sub read_conf {
 
                 my $key= $1;
 
-                printnl("$file, line $line_i: WARNING! 'excludes' not implemented yet!") if $key eq 'exclude';
+                $warn->("'excludes' not implemented yet") if $key eq 'exclude';
 
                 my ($source, $path)= ($2 =~ /^((.*?):(.*))$/) ? ($2, $3) : ("", $2);
                 return $err->("Unknown source '$source'") unless $source eq "" || $sources{$source};
@@ -440,6 +440,15 @@ sub collect_files {
         }
     }
 
+    my $must_analyze= sub {
+        my $section= shift;
+        my $reason= shift;
+
+        $analyze_sections{$section}{$reason}++, return
+            if defined $analyze_sections{$section}{$reason};
+        $analyze_sections{$section}{$reason}= 1;
+    };
+
     my $files_count= 0;
 
     # Collect files and assign them to the different sections
@@ -470,34 +479,39 @@ sub collect_files {
 
                 my $file_key= "$source:$file";
                 my $file_no= int($file_cache{"$file_key:id"} || 0);
+                my $lines= -1;
     
                 if (!$file_no) {
                     $file_no= int($file_cache{'.count'} || 0);
                     $file_cache{"$file_key:id"}= $file_no;
+                    $file_cache{"$file_key:mtime"}= mtime($full_file);
                     $file_cache{'.count'}= $file_no + 1;
 
-                    # New file, must re-analyze Project:
-                    $analyze_sections{$section}= 1;
+                    # New file, must re-analyze Section:
+                    $must_analyze->($section, "new file(s)");
                 }
+                else {
+                    my $mtime= mtime($full_file);
+                    if ($mtime != ($file_cache{"$file_key:mtime"} || 0)) {
+                        $file_cache{"$file_key:mtime"}= $mtime;
 
-                my $mtime= mtime($full_file);
-                if ($mtime != ($file_cache{"$file_key:mtime"} || 0)) {
-                    $file_cache{"$file_key:mtime"}= $mtime;
+                        # Changed file, must re-analyze Section:
+                        # Actually, we could only re-analyze the file, but then the tokens
+                        # may be slightly wrong. Which, on the other hand, maybe doesn't really
+                        # matter. I'll have to check this out some time...
+                        $must_analyze->($section, "modified file(s)");
+                    }
+                    else {
+                        $lines= $file_cache{"$file_key:lines"};
+                        if (!defined $lines) {
+                            $lines= -1;
 
-                    # Changed file, must re-analyze Project:
-                    # Actually, we could only re-analyze the file, but then the tokens
-                    # may be slightly wrong. Which, on the other hand, maybe doesn't really
-                    # matter. I'll have to check this out some time...
-                    $analyze_sections{$section}= 2;
-                }
-
-                my $lines= $file_cache{"$file_key:lines"};
-                if (!defined $lines) {
-                    $lines= -1;
-
-                    # We need to know the number of lines in the file. If it's missing,
-                    # we'll have to re-analyze:
-                    $analyze_sections{$section}= 3;
+                            # We need to know the number of lines in the file. If it's missing,
+                            # we'll have to re-analyze:
+                            $analyze_sections{$section}= 3;
+                            $must_analyze->($section, "missing file length(s)");
+                        }
+                    }
                 }
 
                 push @{ $sections{$section}{'files'} }, {
@@ -603,7 +617,11 @@ sub analyze_files {
     for my $section (@sections) {
 
         if ($analyze_sections{$section}) {
-            printnl("New or modified files. Analysis forced!");
+            my @reasons= ();
+            for my $key (sort keys %{ $analyze_sections{$section} }) {
+                push @reasons, $analyze_sections{$section}{$key} . " $key";
+            }
+            printnl("Analysis forced: " . join(", ", @reasons));
             $build_sections{$section}= 2;
         }
 

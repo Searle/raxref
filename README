@@ -2,10 +2,9 @@
 Raxref - Simple, lightweight and fast Cross Referencing
 =======================================================
 
-It's the first version, but it works very good.
+Raxref cross references the source files of your project for you.
 
-
-And REALLY REALLY simple to use - this is how it goes:
+It's REALLY REALLY simple to use - this is how it goes:
 
 1. Call Raxref and tell it where your source files are and where to put
    the generated files.
@@ -14,18 +13,18 @@ And REALLY REALLY simple to use - this is how it goes:
 That's it. Enjoy your new web application!
 
 
-Some Details? Ok:
+Some Details:
 
 Raxref was inspired by tools like LXR, LXRng and MXR. These are all
 great tools but are rather complicated to use, partly because of the
 many additional requirements or because they're to specialized (MXR).
 
-Raxref only needs Perl to run. It can cope with any kind of source
-language because it's dead stupid and doesn't try to understand the code
-it's cross referencing.
+Raxref only needs a reasonable new Perl to run. It can cope with any
+kind of source language because it's dead stupid and doesn't try to
+understand the code it's cross referencing.
 
-Raxref consists of two simple parts, an analyzer (in Perl) and a runtime
-(in JavaScript).
+Raxref consists of two simple parts, an analyzer (Perl) and a runtime
+(JavaScript).
 
 The analyzer goes through your source files and takes hold on everything
 that looks like a token. Some filtering is done, and some goodies like
@@ -35,7 +34,7 @@ data files. This is done pretty fast on the first run, and even faster
 in later runs because of caching.
 
 The generated web application includes the runtime. Basicly you just
-have to open it with a browser(*) and simply use it. You'll see different
+have to open it with a browser(*) and use it. You'll see different
 panels showing the project, project sections, source files, and the
 cross references. Every panel type has a color code and links to a panel
 have the same color. You may resize the panels.

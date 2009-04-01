@@ -423,14 +423,15 @@ jQuery(function($) {
             for (var file_i in files) {
                 var file= files[file_i];
                 if (file == null || file[3] != section_i) continue;
-                collect.push(file[2]);
+                collect.push([file_i, file[2]]);
             }
-            collect.sort(function(a,b) { return strcmp(a, b); });
+            collect.sort(function(a,b) { return strcmp(a[1], b[1]); });
 
             var last_path= null;
             var result= [];
             for (var collect_i in collect) {
-                var match= file_re.exec(collect[collect_i]);
+                var file_i= collect[collect_i][0];
+                var match= file_re.exec(collect[collect_i][1]);
                 if (!match) {
                     console.log("RegEx failed????");
                     continue;

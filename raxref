@@ -33,13 +33,14 @@ our $VERSION= '0.1';
 # }
 
 our $opt_quiet;
-our $opt_conf= "raxref.conf";
+our $opt_conf;
+our $opt_source;
 our $opt_all;
 our $opt_outpath;
 our $opt_help;
 our $opt_man;
 
-GetOptions( "quiet|q", "conf|c=s", "all|a", "outpath|o=s", "help|h", "man|m" ) or pod2usage(2);
+GetOptions( "quiet|q", "conf|c=s", "source|s=s", "all|a", "outpath|o=s", "help|h", "man|m" ) or pod2usage(2);
 pod2usage(-verbose => 1) if $opt_help;
 pod2usage(-verbose => 2) if $opt_man;
 
@@ -153,6 +154,7 @@ sub init {
 
 sub read_conf {
     my $file= shift;
+    my $content= shift;
 
     # Config files to include
     my %files= ($file => 0);
@@ -183,6 +185,7 @@ sub read_conf {
     my $include;             # "my $sub= sub { $sub->() }" doesn't work in perl 5
     $include= sub {
         my $file= shift;
+        my $content= shift;
 
         $files{$file}= 1;    # mark as included
 
@@ -195,13 +198,13 @@ sub read_conf {
             my $message= shift;
 
             # TODO: Do something saner than exiting, perhaps...
-            printnl("ERROR in $file, line $line_i:\n  $message!\n  The current line is '$line'");
+            printnl("ERROR in '$file', line $line_i:\n  $message!\n  The current line is '$line'");
             return 1;
         };
 
         my $warn= sub {
             my $message= shift;
-            printnl("WARNING in $file, line $line_i:\n  $message!\n The current line is '$line'");
+            printnl("WARNING in '$file', line $line_i:\n  $message!\n The current line is '$line'");
         };
 
         my $not_void_context= sub {
@@ -222,9 +225,11 @@ sub read_conf {
             return 0;
         };
 
-        open my $fin, $file or return 2;
-        while ($line= <$fin>) {
-            chomp $line;
+        $content= read_file($file) if $file;
+        return 2 if $content eq "";
+
+        for (split(/\n\r?/, $content)) {
+            $line= $_;
             $line_i++;
 
             # Kill trailing white space and comments. Comments must start at beginning of line
@@ -344,8 +349,6 @@ sub read_conf {
 
             return $err->("Syntax error");
         }
-        close $fin;
-
         return 0;
     };
 
@@ -354,7 +357,7 @@ sub read_conf {
     $new_section->('OMIT',   'Omitted paths', 1, 1);
     $new_section->('OTHER',  'Other',         0, 1);
 
-    my $result= $include->($file);
+    my $result= $include->($file, $content);
     if ($result) {
         printnl("Can't read config file '$file'") if $result == 2;
         return 1;
@@ -1047,11 +1050,24 @@ sub write_files {
 
 printnl("Raxref ", $VERSION, " by Dietrich Raisin\n");
 
-read_conf($opt_conf) and exit 1;
+if ($opt_source) {
+    pod2usage(-verbose => 1) if $opt_conf;
+
+    my $project_title= $opt_source;
+    $project_title =~ s#.*\/##;
+    $project_title ||= "Unamed";
+
+    read_conf("", ""
+        . "\nproject default $project_title"
+        . "\ninclude conf/std.conf"
+        . "\nsource default $opt_source"
+    ) and exit 1;
+}
+else {
+    read_conf($opt_conf || "raxref.conf") and exit 1;
+}
 
 $output_path= $opt_outpath || "output" unless $output_path;
-
-# die $output_path;
 
 unless (-d $output_path) {
     printnl("Output path '$output_path' is not a directory");
@@ -1093,31 +1109,36 @@ Raxref - Simple, lightweight and fast Cross Referencing
         
 =head1 SYNOPSIS
 
-raxref [options] [section ...]
-                
+raxref [--conf=file] [options] [section ...]
+
+raxref --source=path [options] [section ...]
+
+Use the first variant to use F<file> as conf file, or F<raxref.conf> as
+default if omitted. Use the second variant to simply specify the source
+path on the command line, auto-including F<conf/std.conf>.
+
  Options:
     --help (-h)              brief help message
-    --man (-m)               man page. Similar to "perdoc raxref"
-    --conf file (-c file)    config file. Defaults to "raxref.conf"
+    --man (-m)               man page. Similar to "perldoc raxref"
+    --conf=file (-c file)    config file. Defaults to "raxref.conf"
     --all (-a)               rebuild all sections
-    --outpath path (-o path) output path (overrides config file directive)
+    --outpath=path (-o path) output path. Defaults to "output"
+                             (overrides conf file directive "output_path")
     --quiet (-q)             omit console output
 
 Use C<raxref --man> for more information.
                                                    
 =head1 DESCRIPTION
 
-TBD! Snippets:
-                                                                   
 B<Raxref> was originally written to build a browsable cross reference
 for the Parrot project. But you may use it for any project, because it's
 not Parrot-specific at all, except that there's a bundled config file
 suitable for Parrot.
 
-The default config file is B<raxref.conf>.
+The default config file is F<raxref.conf>.
 
 To force a build of certain sections, add them to the command line, or
-use the '--all' switch to rebuild everything. '--all' will also rebuild
+use the C<--all> switch to rebuild everything. C<--all> will also rebuild
 all caches.
 
 =head2 CONFIG FILES
@@ -1133,7 +1154,7 @@ definitions from 'std.conf' and where to find the sources of your
 project.
 
 Running B<raxref -c myproject.conf> will produce the cross reference
-information and store it in the directory 'output'.
+information and store it in the directory F<output>.
 
 If you want to describe your project in more detail, this are the
 directives that B<Raxref> will accept in conf files:
@@ -1142,9 +1163,9 @@ directives that B<Raxref> will accept in conf files:
 
 =item C<project name title>
 
-Tells B<Raxref> how you call your project. The project identifier <name>
-is used for file names and such, so keep it unique. The <title> is in
-the UI.
+Tells B<Raxref> how you call your project. The project identifier
+C<name> is used for file names and such, so keep it unique. The C<title>
+is in the UI.
 
 =item C<source name path>
 

@@ -431,7 +431,7 @@ sub collect_files {
             my $path= ($include->[1] eq '') ? '' : $include->[1] . '/';
             my $depth= $path =~ tr/\///;
             push @{ $filter{$source} }, [
-                $section,                   # 0
+                $section,                   # 0 section no
                 $source,                    # 1 source, unused
                 $path,                      # 2 path
                 $depth,                     # 3 depth
@@ -500,7 +500,6 @@ sub collect_files {
                     $analyze_sections{$section}= 3;
                 }
 
-                # push @{ $sections{$section}{'files'} }, [ $ftype, $source, $file, $file_no, $section ];
                 push @{ $sections{$section}{'files'} }, {
                         ftype => $ftype,
                         source => $source,
@@ -524,6 +523,7 @@ sub collect_files {
                 unless $section eq 'OMIT' || $section eq 'OTHER';
             next;
         }
+        $sections{$section}{'index'}= scalar @new_sections;
         push @new_sections, $section;
     }
     @sections= @new_sections;
@@ -954,7 +954,8 @@ sub write_files {
                 $extra= ' (forced)';
             }
             
-            printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
+            printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done");
+            # printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
 
             my $code= read_file($infile);
 

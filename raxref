@@ -675,8 +675,13 @@ sub _sections_as_js {
 sub _files_as_js {
     my $files= shift;
 
-    return "var files=[" . join(",\n", map {
-        $_ ? "[" . $_->{'lines_per_part'} . "," . $_->{'lines'} . ",'" . $_->{'file'} . "'," . $sections{$_->{'section'}}{'index'} . "]" : 'null'
+    return "var files=[" . join(",\n", map { $_
+        ? "[" . $_->{'lines_per_part'}
+            . "," . $_->{'lines'}
+            . ",'" . $_->{'source'} . ':' . $_->{'file'} . "'"
+            . "," . $sections{$_->{'section'}}{'index'}
+            . "]"
+        : 'null'
     } @$files) . "];\n";
 }
 

@@ -58,6 +58,7 @@ Please look at the LICENSE* files
 TODO by priority:
 =================
 
+- UI: Remove 'source:' Prefix whereever possible
 - Add "include" detection
 - JS: Add "new source window", "new xref window"
 - Add Project Meta Info e.g 'meta author Blah', 'meta url parrot.org'...

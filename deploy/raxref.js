@@ -47,14 +47,14 @@ jQuery(function($) {
             '.slot.%t .code .doc          { border-color: %49 }',
         ];
 
-        var slots= [ 'project', 'section', 'file', 'xref' ];
+        var slots= { project: 0, section: 1, file: 3, xref: 4 };
 
         var css= '';
         for (var style_i in styles) {
             var style= styles[style_i];
             for (var slot_i in slots) {
-                css += style.replace(/%t/g, slots[slot_i]).replace(/%(\d)(\d)/g, function(m) {
-                    return hsvToHtml(slot_i * 60 + 40, m[1] * 0.11 + 0.01, m[2] * 0.11 + 0.01);
+                css += style.replace(/%t/g, slot_i).replace(/%(\d)(\d)/g, function(m) {
+                    return hsvToHtml(slots[slot_i] * 60 + 40, m[1] * 0.11 + 0.01, m[2] * 0.11 + 0.01);
                 }) + '\n';
             }
         }

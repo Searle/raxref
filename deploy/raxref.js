@@ -347,7 +347,7 @@ jQuery(function($) {
                                 // I couldn't make Ajaxthingy.abort() working, properly,
                                 // so do it this way. 
                                 if (currentCount < showXrefCount) {
-                                    console.warn("Ajax call aborted");
+                                    console.warn("showXref: Ajax call aborted");
                                     return;
                                 }
 
@@ -372,6 +372,8 @@ jQuery(function($) {
             _next_line_no();
         };
 
+        var showFileCount= 0;
+
         var showFile= function(file_no, line_no) {
             var length= files[file_no][1];
             var file_split= files[file_no][0];
@@ -395,15 +397,25 @@ jQuery(function($) {
                 }
             };
 
+            var currentCount= ++showFileCount;
+
             var _next= function() {
                 jQuery.ajax({
                     url: files_path + "/file" + file_no + "-" + part_no + ".html",
                     dataType: "html",
                     complete: function(res, status){
+
+                        // If showFile was called again, stop bothering.
+                        if (currentCount < showFileCount) {
+                            console.warn("showFile: Ajax call aborted");
+                            return;
+                        }
+
                         if (status != "success" && status != "notmodified") {
                             // FIXME: Do something!
                             return;
                         }
+
                         collected.push(res.responseText),
                         part_no++;
                         start += file_split;

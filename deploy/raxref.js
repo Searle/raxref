@@ -418,22 +418,26 @@ jQuery(function($) {
 
         var showSection= function(section_i) {
             var section= sections[section_i];
-            var result= [];
-            var path= [];
-            var last_path= null;
             var file_re= /^((.*)\/)?([^\/]+)$/;
+            var collect= [];
             for (var file_i in files) {
                 var file= files[file_i];
                 if (file == null || file[3] != section_i) continue;
+                collect.push(file[2]);
+            }
+            collect.sort(function(a,b) { return strcmp(a, b); });
 
-                var match= file_re.exec(file[2]);
+            var last_path= null;
+            var result= [];
+            for (var collect_i in collect) {
+                var match= file_re.exec(collect[collect_i]);
                 if (!match) {
                     console.log("RegEx failed????");
                     continue;
                 }
-                if (last_path != match[1]) {
+                if (last_path != match[2]) {
                     if (last_path) result.push("</ol>");
-                    last_path= match[1];
+                    last_path= match[2];
                     result.push("<ol><li><h1>" + htmlize_filename(last_path) + "</h1></li>");
                 }
                 result.push("<li><b ref='" + file_i + "'>" + htmlize_filename(match[3]) + "</b></li>");

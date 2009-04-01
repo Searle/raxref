@@ -937,7 +937,7 @@ sub write_files {
         my $tokens = $sections{$section}{'tokens'};
 
         # Find all Tokens that contain word breaks. This happens with perl code (::).
-        # Because the token loopup further on depends on tokens NOT containing
+        # Because the token lookup further on depends on tokens NOT containing
         # word breaks, this case must be treated specially.
         #
         # We build a RegEx that matches either these tokens or <\d+>. Later we will
@@ -947,7 +947,7 @@ sub write_files {
         for (keys %$tokens) {
             push @special_tokens, quotemeta($_) if /\S\b\S/;
         }
-        my $special_tokens= join('|', @special_tokens);
+        my $special_tokens= join('|', sort { length($b) <=> length($a) } @special_tokens);
         my $special_tokens_re= qr/\b(?:<\d+>|$special_tokens)/;
         my $special_tokens_temp_re1= qr/^<\d+>$/;
         my $special_tokens_temp_re2= qr/<(\d+)>/;
@@ -1009,7 +1009,7 @@ sub write_files {
             $code =~ s/$special_tokens_re/
                 $repl[++$repl_count]= ($& =~ $special_tokens_temp_re1 ? $& : "<b class='_$&'>$&<\/b>");
                 "<$repl_count>"
-            /gex if @special_tokens;
+            /gex if scalar @special_tokens;
 
             # Faster than a RegEx:
             my @words= split(/\b/, $code);
@@ -1018,7 +1018,7 @@ sub write_files {
                 # Possible optimisation: check for keywords here in a similar manner
                 # Probably needed for PHP. Didn't test yet...
 
-                $_= "<b class='_$_'>$_</b>", next if defined $tokens->{$_};
+                $_= "<b class='_$_'>$_</b>" if defined $tokens->{$_};
             }
             $code= join('', @words);
 

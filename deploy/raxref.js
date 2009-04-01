@@ -419,29 +419,32 @@ jQuery(function($) {
         var showSection= function(section_i) {
             var section= sections[section_i];
             var file_re= /^((.*)\/)?([^\/]+)$/;
-            var collect= [];
+            var collects= [];
             for (var file_i in files) {
                 var file= files[file_i];
                 if (file == null || file[3] != section_i) continue;
-                collect.push([file_i, file[2]]);
-            }
-            collect.sort(function(a,b) { return strcmp(a[1], b[1]); });
-
-            var last_path= null;
-            var result= [];
-            for (var collect_i in collect) {
-                var file_i= collect[collect_i][0];
-                var match= file_re.exec(collect[collect_i][1]);
+                var match= file_re.exec(file[2]);
                 if (!match) {
                     console.log("RegEx failed????");
                     continue;
                 }
-                if (last_path != match[2]) {
+                collects.push([ file_i, match[2], match[3] ]);
+            }
+            collects.sort(function(a,b) { return strcmp(a[1], b[1]) || strcmp(a[2], b[2]); });
+
+            var last_path= null;
+            var result= [];
+            for (var collect_i in collects) {
+                var collect= collects[collect_i];
+                var file_i= collect[0];
+                var path= collect[1];
+                var filename= collect[2];
+                if (last_path != path) {
                     if (last_path) result.push("</ol>");
-                    last_path= match[2];
+                    last_path= path;
                     result.push("<ol><li><h1>" + htmlize_filename(last_path) + "</h1></li>");
                 }
-                result.push("<li><b ref='" + file_i + "'>" + htmlize_filename(match[3]) + "</b></li>");
+                result.push("<li><b ref='" + file_i + "'>" + htmlize_filename(filename) + "</b></li>");
             }
             if (last_path) result.push("</ol>");
 
@@ -458,7 +461,7 @@ jQuery(function($) {
             }
             var result= [];
             for (var token in tokens) {
-                var inx= token.indexOf(search);
+                var inx= token.toLowerCase().indexOf(search);
                 if (inx >= 0) result.push([inx, token]);
             }
             result.sort(function(a, b) { return a[0] - b[0] || strcmp(a[1], b[1]) });

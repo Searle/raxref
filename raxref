@@ -295,8 +295,6 @@ sub read_conf {
             if ($line =~ /^omit$/) {
                 return 1 if $not_section_context->();
 
-                $warn->("'omit' not implemented yet");
-
                 $sections{$section}{omit}= 1;
                 next;
             }
@@ -403,12 +401,15 @@ sub _dir_walk {
 		opendir my $dh, $file or next;
 		my @newfiles = grep { $_ ne "." && $_ ne ".." } readdir $dh;
 
-                # Insert sorted, so that directories come first
-		unshift @queue, map "$file/$_", sort {
-                    -d "$file/$a"
-                        ? (-d "$file/$b" ? $a cmp $b : -1)
-                        : (-d "$file/$b" ? 1 : $a cmp $b)
-                } @newfiles;
+		unshift @queue, map "$file/$_", @newfiles;
+
+                ## Insert sorted, so that directories come first
+		# unshift @queue, map "$file/$_", sort {
+                #     -d "$file/$a"
+                #         ? (-d "$file/$b" ? $a cmp $b : -1)
+                #         : (-d "$file/$b" ? 1 : $a cmp $b)
+                # } @newfiles;
+
                 next unless $want_dirs;
 	    }
             return $file;
@@ -475,7 +476,7 @@ sub collect_files {
                     $section= $filter->[0];
                     last;
                 }
-                next if $section eq 'OMIT';
+                next if $sections{$section}{'omit'};
 
                 my $file_key= "$source:$file";
                 my $file_no= $file_cache{"$file_key:id"};
@@ -518,7 +519,7 @@ sub collect_files {
                         ftype => $ftype,
                         source => $source,
                         file => $file,
-                        file_no => (int)$file_no,
+                        file_no => int($file_no),
                         section => $section,
                         lines => $lines,
                         lines_per_part => lines_per_part($lines)
@@ -534,7 +535,7 @@ sub collect_files {
     for my $section (@sections) {
         unless (@{ $sections{$section}{'files'} }) {
             printnl("Collecting files: Section '$section' omitted because it contains no files")
-                unless $section eq 'OMIT' || $section eq 'OTHER';
+                unless $sections{$section}{'omit'} || $section eq 'OTHER';
             next;
         }
         $sections{$section}{'index'}= scalar @new_sections;
@@ -834,7 +835,7 @@ sub write_data_js {
     my %all_tokens;
 
     for my $section (@sections) {
-        next if $section eq 'OMIT';
+        next if $sections{$section}{'omit'};
 
         my $files = $sections{$section}{'files'};
         for my $fileinfo (@$files) {
@@ -1063,7 +1064,7 @@ sub write_files {
     };
 
     for (@sections) {
-        $write_file->($_) unless $_ eq 'OMIT';
+        $write_file->($_) unless $sections{$_}{'omit'};
     }
     printnl("Writing files: finished");
 }

@@ -83,6 +83,7 @@ TODO misc, unsorted:
 - Make several Async-GETs (3?) simultaniously
 - Support JavaDoc
 - JS: Add Slot dragging
+- Add simple GIT and SVN-Support ("source git://..")
 
 DONE:
 =====

@@ -478,10 +478,10 @@ sub collect_files {
                 next if $section eq 'OMIT';
 
                 my $file_key= "$source:$file";
-                my $file_no= int($file_cache{"$file_key:id"} || 0);
+                my $file_no= $file_cache{"$file_key:id"};
                 my $lines= -1;
     
-                if (!$file_no) {
+                if (!defined $file_no) {
                     $file_no= int($file_cache{'.count'} || 0);
                     $file_cache{"$file_key:id"}= $file_no;
                     $file_cache{"$file_key:mtime"}= mtime($full_file);

@@ -68,14 +68,12 @@ TODO misc, unsorted:
 
 - Add Project description
 - HTML Encoding
-- Tab expansion: Use MXR code
 - Analyse Shebang for file type detection
 - Force analysis if conf file changes
 - Optimize File scanning for PHP
 - Fix the FIXMEs
 - Include Raxref Version in output
 - Add conf directive for sections: "filetypes c99 perl php html"
-- Implement conf directive "omit"
 - Make conf direcive 'token_threshold' section-specific
 - Xref: Load visible files first
 - Xref: List least indented first
@@ -84,6 +82,7 @@ TODO misc, unsorted:
 - Support JavaDoc
 - JS: Add Slot dragging
 - Add simple GIT and SVN-Support ("source git://..")
+- Add tab-width directive for tab expansion. Now hard-coded with 8, but vi's 'tab-width' supported
 
 DONE:
 =====
@@ -93,3 +92,5 @@ DONE:
 - JS: Add Slot resizing
 - Add a simple possibility to build a rexref web app without a conf file
   e.g. raxref --source some/path (auto-include conf/std.conf)
+- Implement conf directive "omit"
+- Tab expansion: Use MXR code

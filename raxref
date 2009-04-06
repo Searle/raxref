@@ -592,7 +592,7 @@ sub _analyze_file {
     my $keywords_re= $ftypes{$ftype}{'keywords_re'};
     $exclude_re= $exclude_re ? ($keywords_re ? $exclude_re . '|' . $keywords_re : $exclude_re) : $keywords_re;
     $exclude_re= $exclude_re eq '' ? undef : qr/^($exclude_re)$/;
-    
+
     my $line_no= 0;
     for my $line (split(/\n\r?/, $content)) {
 	$line_no++;
@@ -988,6 +988,15 @@ sub write_files {
             # printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
 
             my $code= read_file($infile);
+
+            # Untabify (taken from MXR)
+            # Support for vi's tab-width parameter:
+            my $tabwidth= $code =~ /^#.*-[*]-.*?[ \t;]tab-width:[ \t]*([0-9]+).*-[*]-/m ? $1 : 8;
+            
+            # I hope the 'if' speeds things up. MXR does that. Maybe for a reason...
+            if ($code =~ /\t/) {
+                $code =~ s/^([^\t\n\r]*)\t/$1 . (' ' x ($tabwidth - (length($1) % $tabwidth)))/gem;
+            }
 
             # Replace &, < and > because they have a meaning in HTML.
             # Use the numeric codes, 'gt', 'lt' or 'amp' may be keywords and would be replaced in the next step.

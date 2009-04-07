@@ -14,6 +14,7 @@ jQuery(function($) {
     var activeSlot= null;
     var activeElement= null;
 
+    // *Sigh* Why isn't this a built-in if the sort function needs it?
     var strcmp= function(a, b) {
         if (a > b) return 1;
         if (a < b) return -1;
@@ -61,6 +62,7 @@ jQuery(function($) {
         $('head').append($("<style type='text/css'>" + css + "</style>"));
     };
 
+    // Builds a function that calls the function <fn> delayed by <ms> ms
     var DelayedFunc= function(ms, fn) {
         var hTimer;
 
@@ -70,6 +72,43 @@ jQuery(function($) {
                 hTimer= null;
                 fn(arg);
             }, ms);
+        };
+    };
+
+    // Builds a function that manages parallel Ajax calls
+    var ParallelFetch= function() {
+        var fetchCount= 0;
+
+        return function(instances, nextFn, completeFn) {
+            var _next= function() {
+                var next= nextFn();
+                if (!next) return;
+                
+                var currentCount= fetchCount;
+                jQuery.ajax({
+                    url: next[0],
+                    dataType: "html",
+                    complete: function(res, status) {
+
+                        // If the exec function was called again, stop bothering.
+                        // I couldn't make Ajaxthingy.abort() work properly,
+                        // so do it this way. 
+                        if (currentCount < fetchCount) {
+                            console.warn("parallelFetch: Ajax call aborted");
+                            return;
+                        }
+                        if (status != "success" && status != "notmodified") {
+                            // FIXME: Do something...
+                            return;
+                        };
+                        completeFn(res, next[1]);
+                        _next();
+                    }
+                });
+            };
+
+            fetchCount++;
+            for (var i= 0; i < instances; i++) _next(i);
         };
     };
 
@@ -124,6 +163,7 @@ jQuery(function($) {
         });
 
         // TODO: Use this function on unload
+        // $(window).bind('unload', function() { .. });
         var _destroy= function() {
             me= null;
             $("#slot" + id).data("slot", null);
@@ -266,7 +306,7 @@ jQuery(function($) {
             return [ files_path + "/file" + file_no + "-" + (start / file_split) + ".html", line_ofs ];
         };
 
-        var showXrefCount= 0;
+        var parallelFetch= ParallelFetch();
 
         var showXref= function(token) {
 
@@ -276,7 +316,19 @@ jQuery(function($) {
                 return;
             }
 
+            // Change click on token to click on line
+            var xref_re= new RegExp("(<b class='_" + token + ")(')", "g");
+
+            var fetchedFunc= function(file_no, line_no, line) {
+                line= line.replace(/^<li[^>]*>/, '').replace(/<\/li>$/, '')     // remove <li> and </li>
+                    .replace(xref_re, '$1 link to-file$2');
+                $('#q' + id + '-' + file_no + '-' + line_no).html(line);
+            };
+
             var result= [];
+            var fetch= [];
+            var lastFile= null;
+            
             for (var xrefList_i in xrefList) {
                 var xref= xrefList[xrefList_i];
                 result.push("<ol><li><h1>", htmlize_filename(filename(xref.file_no)), "</h1></li>");
@@ -286,90 +338,43 @@ jQuery(function($) {
                         "<span class='line_no link to-file' rel='", xref.file_no, ':', line_no, "'>", line_no, ".</span>",
                         "<span id='q", id, '-', xref.file_no, '-', line_no, "'><span class='loading'>Loading</span></span>",
                         "</li>");
-                }
-                result.push("</ol>");
-            }
-            showText("Xref for '" + token + "'", "<div class='code xref simple-ol to-xref'>" + result.join("") + "</div>");
-
-            // Change click on token to click on line
-            var xref_re= new RegExp("(<b class='_" + token + ")(')", "g");
-
-            var fetchedFunc= function(file_no, line_no, line) {
-                line= line.replace(/^<li[^>]*>/, '').replace(/<\/li>$/, '')     // remove <li> and </li>
-                    .replace(xref_re, '$1 link to-file$2');
-                var spanId= 'q' + id + '-' + file_no + '-' + line_no;
-                $('#' + spanId).html(line);
-            };
-
-            var part_lines= null;
-
-            var fetchedFunc2= function(file_no, line_no, line_ofs) {
-                fetchedFunc(file_no, line_no, line_ofs < part_lines.length ? part_lines[line_ofs] : line_ofs + " >= " + part_lines.length + " ???");
-            };
-
-            var currentCount= ++showXrefCount;
-            var last_filepos= [ '', -1 ];
-            var xref= null;
-            var line_nos= [];
-
-            var _next_line_no= function() {
-                for (;;) {
-                    var line_no= line_nos.shift();
-                    if (line_no == null) {
-                        xref= xrefList.shift();
-                        if (xref == null) {
-                            // finishedFunc();
-                            return;
-                        }
-                        line_nos= xref.line_nos;
-                        line_no= line_nos.shift();
-                    }
-
-                    var file_no= xref.file_no;
-                    var filepos= file_by_line(file_no, line_no);
+                    var filepos= file_by_line(xref.file_no, line_no);
                     if (filepos == null) {
 
                         // FIXME: cache-problematik: loesung: erste zeile checken ob file stimmt, ansonsten nochmal holen mit "cache: false"
                         // Laenger nicht mehr aufgetaucht, weiter beobachten...
                         fetchedFunc(file_no, line_no, "<li>Kaputt</li>");
-                        return;
+                        continue;
                     }
-
-                    // Found in different file? Fetch it with Ajax.
-                    if (filepos[0] != last_filepos[0]) {
-                        last_filepos= filepos;
-                        jQuery.ajax({
-                            url: filepos[0],
-                            dataType: "html",
-                            complete: function(res, status) {
-
-                                // If showXref was called again, stop bothering.
-                                // I couldn't make Ajaxthingy.abort() working, properly,
-                                // so do it this way. 
-                                if (currentCount < showXrefCount) {
-                                    console.warn("showXref: Ajax call aborted");
-                                    return;
-                                }
-
-                                if (status != "success" && status != "notmodified") {
-                                    // FIXME: Do something...
-                                    return;
-                                };
-
-                                part_lines= res.responseText.split(/\n/);
-
-                                fetchedFunc2(file_no, line_no, filepos[1]);
-                                _next_line_no();
-                            }
-                        });
-                        return;
+                    if (filepos[0] != lastFile) {
+                        lastFile= filepos[0];
+                        fetch.push([ lastFile, [ xref.file_no, line_no, filepos[1] ] ]);
+                        continue;
                     }
-
-                    fetchedFunc2(file_no, line_no, filepos[1]);
+                    fetch[fetch.length - 1][1].push(xref.file_no, line_no, filepos[1]);
                 }
-            };
+                result.push("</ol>");
+            }
+            showText("Xref for '" + token + "'", "<div class='code xref simple-ol to-xref'>" + result.join("") + "</div>");
 
-            _next_line_no();
+            var fetch_i= -1;
+
+            parallelFetch( 8,   // Fetch 8 in parallel. Too many? Dunno...
+                function() {
+                    fetch_i++;
+                    return fetch_i >= fetch.length ? null : fetch[fetch_i];
+                },
+                function(res, fetch_o) {
+                    var lines= res.responseText.split(/\n/);
+                    for (var i= 0; i < fetch_o.length; i += 3) {
+                        var file_no= fetch_o[i];
+                        var line_no= fetch_o[i + 1];
+                        var line_ofs= fetch_o[i + 2];
+
+                        fetchedFunc(file_no, line_no, line_ofs < lines.length ? lines[line_ofs] : line_ofs + " >= " + lines.length + " ???");
+                    }
+                }
+            );
         };
 
         var showFileCount= 0;

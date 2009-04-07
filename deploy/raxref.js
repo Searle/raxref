@@ -79,10 +79,15 @@ jQuery(function($) {
     var ParallelFetch= function() {
         var fetchCount= 0;
 
-        return function(instances, nextFn, completeFn) {
+        return function(instances, nextFn, completeFn, doneFn) {
+            var fetching= instances;
             var _next= function() {
                 var next= nextFn();
-                if (!next) return;
+                if (!next) {
+                    fetching--;
+                    if (fetching == 0 && doneFn) doneFn();
+                    return;
+                }
                 
                 var currentCount= fetchCount;
                 jQuery.ajax({
@@ -101,7 +106,7 @@ jQuery(function($) {
                             // FIXME: Do something...
                             return;
                         };
-                        completeFn(res, next[1]);
+                        if (completeFn) completeFn(res, next[1]);
                         _next();
                     }
                 });
@@ -306,6 +311,7 @@ jQuery(function($) {
             return [ files_path + "/file" + file_no + "-" + (start / file_split) + ".html", line_ofs ];
         };
 
+        // We want one per Slot
         var parallelFetch= ParallelFetch();
 
         var showXref= function(token) {
@@ -377,60 +383,47 @@ jQuery(function($) {
             );
         };
 
-        var showFileCount= 0;
-
         var showFile= function(file_no, line_no) {
-            var length= files[file_no][1];
+            var file_length= files[file_no][1];
             var file_split= files[file_no][0];
-            var start= 0;
-            var part_no= 0;
-            var collected= [ "<h1>", htmlize_filename(filename(file_no)), "</h1><div class='code to-xref'><ol>" ];
+            var parts= [];
+            
+            if (typeof line_no == 'undefined') line_no= -1;
 
-            var _done= function() {
-                line_no= line_no > 0 ? line_no : 0;
-                collected.push("</ol></div>");
-                var $body= showText(
+            for (var p= 0, i= 0; p < file_length; p += file_split, i++) {
+                parts[i]= "<li><font color='red'>Load of Part " + i + " failed :-(</font></li>";
+            }
+
+            var _showText= function(text) {
+                return showText(
                     "File '" + htmlize(filename(file_no)) + "'",
-                    collected.join(''),
+                    "<h1>" + htmlize_filename(filename(file_no)) + "</h1>"
+                        + "<div class='code to-xref'>" + text + "</div>",
                     true);
-                $body.scrollTo(line_no <= 6 ? 0 : "li:nth-child(" + (line_no - 6)+ ")");
-                if (line_no) {
+            };
+
+            var part_no= -1;
+
+            parallelFetch( 8,   // Fetch 8 in parallel. Too many? Dunno...
+                function() {
+                    part_no++;
+                    return part_no >= parts.length ? null : [ files_path + "/file" + file_no + "-" + part_no + ".html", part_no ];
+                },
+                function(res, part_no) {
+                    parts[part_no]= res.responseText;
+                    _showText("Loaded " + Math.floor((part_no + 1) * 100 / parts.length) + "%");
+                },
+                function() {
+                    var $body= _showText("<ol>" + parts.join('') + "</ol></div>");
+                    $body.scrollTo(line_no <= 6 ? 0 : "li:nth-child(" + (line_no - 6)+ ")");
+                    if (line_no < 0) return;
+
                     $body.find("li:nth-child(" + line_no + ")")
                         .css("backgroundColor", "#FF0")
                         .animate({ "backgroundColor": "#FFF" }, 3000)
                     ;
                 }
-            };
-
-            var currentCount= ++showFileCount;
-
-            var _next= function() {
-                jQuery.ajax({
-                    url: files_path + "/file" + file_no + "-" + part_no + ".html",
-                    dataType: "html",
-                    complete: function(res, status){
-
-                        // If showFile was called again, stop bothering.
-                        if (currentCount < showFileCount) {
-                            console.warn("showFile: Ajax call aborted");
-                            return;
-                        }
-
-                        if (status != "success" && status != "notmodified") {
-                            // FIXME: Do something!
-                            return;
-                        }
-
-                        collected.push(res.responseText),
-                        part_no++;
-                        start += file_split;
-                        if (start >= length) return _done();
-
-                        _next();
-                    }
-                });
-            };
-            _next();
+            );
         };
 
         var showSection= function(section_i) {

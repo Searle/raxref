@@ -167,13 +167,6 @@ jQuery(function($) {
             },
         });
 
-        // TODO: Use this function on unload
-        // $(window).bind('unload', function() { .. });
-        var _destroy= function() {
-            me= null;
-            $("#slot" + id).data("slot", null);
-        };
-
         var activate= function() {
             $(".slot").removeClass("active");
             $('#slot' + id).addClass("active");
@@ -383,12 +376,31 @@ jQuery(function($) {
             );
         };
 
+        var showFileNo= -1;
+        var $showFileBody= null;
+
         var showFile= function(file_no, line_no) {
             var file_length= files[file_no][1];
             var file_split= files[file_no][0];
             var parts= [];
             
             if (typeof line_no == 'undefined') line_no= -1;
+
+            var scrollToLine= function() {
+                $showFileBody.scrollTo(line_no <= 6 ? 0 : "li:nth-child(" + (line_no - 6)+ ")");
+                if (line_no < 0) return;
+
+                $showFileBody.find("li:nth-child(" + line_no + ")")
+                    .css("backgroundColor", "#FF0")
+                    .animate({ "backgroundColor": "#FFF" }, 3000)
+                ;
+            };
+
+            if (showFileNo == file_no) {
+                activate();
+                scrollToLine();
+                return;
+            }
 
             for (var p= 0, i= 0; p < file_length; p += file_split, i++) {
                 parts[i]= "<li><font color='red'>Load of Part " + i + " failed :-(</font></li>";
@@ -414,14 +426,9 @@ jQuery(function($) {
                     _showText("Loaded " + Math.floor((part_no + 1) * 100 / parts.length) + "%");
                 },
                 function() {
-                    var $body= _showText("<ol>" + parts.join('') + "</ol></div>");
-                    $body.scrollTo(line_no <= 6 ? 0 : "li:nth-child(" + (line_no - 6)+ ")");
-                    if (line_no < 0) return;
-
-                    $body.find("li:nth-child(" + line_no + ")")
-                        .css("backgroundColor", "#FF0")
-                        .animate({ "backgroundColor": "#FFF" }, 3000)
-                    ;
+                    showFileNo= file_no;
+                    $showFileBody= _showText("<ol>" + parts.join('') + "</ol></div>");
+                    scrollToLine();
                 }
             );
         };
@@ -509,6 +516,14 @@ jQuery(function($) {
                 +   result.join("")
                 + "</ol></div>"
             );
+        };
+
+        // TODO: Use this function on unload
+        // $(window).bind('unload', function() { .. });
+        var _destroy= function() {
+            me= null;
+            $showFileBody= null;
+            $("#slot" + id).data("slot", null);
         };
 
         this.id= id;    // read only

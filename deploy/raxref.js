@@ -170,6 +170,12 @@ jQuery(function($) {
         var activate= function() {
             $(".slot").removeClass("active");
             $('#slot' + id).addClass("active");
+
+            // Set the focus, so that you can use the cursor keys to navigate right away.
+            // In FF3, this only works after the user has clicked into the document once :-/
+            // In Safari, it doesn't work at all :-(
+            // FIXME: Find a solution
+            $('#slot' + id + " .body").focus();
             activeSlot= me;
         };
 

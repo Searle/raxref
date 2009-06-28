@@ -1039,19 +1039,42 @@ sub write_files {
             # Undo special Tokens temporay replacement
             $code =~ s/$special_tokens_temp_re2/$repl[$1]/ge;
 
-            my $pod_cmds= "(head1|head2|head3|head4|over|item|back|pod|begin|end|for)";
+            my $pod_cmds= "(head1|head2|head3|head4|over|item|back|pod|begin|end|for|cut)";
             my @result;
             my $class= "";
             my $in_doc= 0;
-            for (split(/\n/, $code)) {
-                if (/^=(?:$pod_cmds\b|<b class='_$pod_cmds')/) {
-                    $class= " class='doc doc-" . ($1 || $2) . ($in_doc ? "" : " doc-start") . "'";
-                    $_= "<span class='doc-i'>$_</span>";
-                    $in_doc= 1;
-                }
-                elsif (/^=(?:cut\b|<b class='_cut')/) {
-                    $class= " class='doc doc-end'";
-                    $in_doc= 0;
+            for (split(/\n\r?/, $code)) {
+            
+                # Finds "=podcmd" and "=<b class='_podcmd'>podcmd</b>"
+                # Then wraps this inside "<span class='doc-cmd'> {found} </span>"
+                if (/^=($pod_cmds\b|<b class='_$pod_cmds'>\3<\/b>)/) {
+
+                    my $cmd= $2 || $3;
+                    my $raw_cmd= $&;
+                    my $rest= $';
+
+                    # $_= "<span class='doc-cmd'>$&<\/span>" . $';
+
+                    {
+                        no warnings; # FIXME: How to avoid warnings if $2 is undef?
+                        1 while $rest =~ s/([IBCLEFSXZ])&#60;(.*?)&#62;/\n1$1$2\n2/x;
+                    }
+                    $rest =~ s/\n1(.)/<span class='doc-markup'>$1&#60;<\/span>/g;
+                    $rest =~ s/\n2/<span class='doc-markup'>&#62;<\/span>/g;
+
+                    $_= "<span class='doc-cmd'>$raw_cmd<\/span>$rest";
+
+                    # my $cmd= $2 || $3;
+                    
+                    if ($cmd eq 'cut') {
+                        $class= " class='doc doc-end'";
+                        $in_doc= 0;
+                    }
+                    else {
+                        $class= " class='doc doc-" . $cmd . ($in_doc ? "" : " doc-start") . "'";
+                        $_= "<span class='doc-i'>$_</span>";
+                        $in_doc= 1;
+                    }
                 }
                 elsif ($in_doc) {
                     $class= " class='doc'";

@@ -139,7 +139,7 @@ jQuery(function($) {
                     +             "<div class='filter-c'><div class='filter round-corners'>"
                     +                 "<input class='search-input' type='text' /><div class='closer'>[x]</div>"
                     +             "</div></div>"
-                    +         "<div class='body slot-border round-corners'></div></div>"
+                    +         "<div class='body slot-border round-corners'><span class='grey'>(Click to focus and start typing to filter)</span></div></div>"
                     +     "</div>"
                     + "</div>");
 
@@ -678,7 +678,7 @@ jQuery(function($) {
         })
         .keyup(function(ev) {
             if (activeSlot && activeElement && (ev.keyCode == 27 || (ev.keyCode == 8 && activeElement.value == ''))) {
-                if ($(ev.target).closest('.filter').length) activeSlot.showFilter(false);
+                // if ($(ev.target).closest('.filter').length) activeSlot.showFilter(false);
                 return true;
             }
         })

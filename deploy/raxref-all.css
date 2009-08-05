@@ -27,6 +27,10 @@ div {
     -webkit-box-sizing: border-box;
 }
 
+.grey {
+    color: #999;
+}
+
 .round-corners {
     -moz-border-radius: 0.25em;
     -webkit-border-radius: 0.25em;

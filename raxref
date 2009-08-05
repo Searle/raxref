@@ -15,13 +15,14 @@ use Pod::Usage;
 use File::Copy;
 use DB_File;
 use POSIX qw( ceil );
+use Cwd qw( cwd abs_path );
 
 use Data::Dumper;
 
 our $VERSION= '0.1';
 
 # TODO: Doc
-# my $have_zlib;
+my $have_zlib;
 
 # Zlib not yet NOT IMPLEMENTED
 # BEGIN {
@@ -134,6 +135,31 @@ sub write_file {
 #
 ###############################################################################
 
+sub get_repo_info {
+    my $repo_type= shift;
+    my $path= shift;
+
+    my %info;
+
+    my $old_path= cwd();
+    chdir $path or return { error => "Can't chdir to '$path'" };
+
+    if ($repo_type eq 'svn') {
+        my $info= `svn info`;
+        $info =~ /^Revision:\s+(\S+)/m;
+        $info{'version'}= "Revision $1" if $1;
+    }
+    if ($repo_type eq 'git') {
+        my $info= `git log | head -n 3`;
+        $info =~ /^Date:\s+(\S+)/m;
+        $info{'version'}= $1 if $1;
+    }
+    chdir $old_path;
+
+    return { error => "No version info found" } unless $info{'version'};
+    return \%info;
+}
+
 sub init {
 
     # Reset all data
@@ -240,6 +266,7 @@ sub read_conf {
             if ($line =~ /^include\s+(.*)$/) {
                 $warn->("File '$1' already included. Ignored."), next if $files{$1};
 
+                # TODO: Support ~/...
                 return $err->("Error in included file") if $include->($1);
                 next;
             }
@@ -254,13 +281,19 @@ sub read_conf {
                 $project_title= $2;
                 next;
             }
-            if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
+            if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
                 return 1 if $not_void_context->();
-                return $err->("Source already defined") if $sources{$1};
-                return $err->("Source path '$2' is not a directory") unless -d $2;
 
-                $default_source= $1 unless $default_source;
-                $sources{$1}= $2;
+                my ($name, $path, $repo_type)= ($1, $2, $4);
+                $path =~ s/^~/$ENV{HOME}/;
+                return $err->("Source already defined") if $sources{$name};
+                return $err->("Source path '$path' is not a directory") unless -d $path;
+                return $err->("Repository type not supported. Supported: git, svn.") if $repo_type ne 'git' && $repo_type ne 'svn';
+
+                $default_source= $name unless $default_source;
+                $sources{$name}= $path;
+
+                get_repo_info($repo_type, $path);
                 next;
             }
             if ($line =~ /^output_path\s+(.+)$/) {
@@ -268,6 +301,7 @@ sub read_conf {
                 next if $opt_outpath;
                 return $err->("Output path '$1' is not a directory") unless -d $1;
 
+                # TODO: Support ~/...
                 $output_path= $1;
                 next;
             }
@@ -287,7 +321,7 @@ sub read_conf {
                 $ftype= undef;
                 $section= $1;
                 next if $section eq 'OMIT' || $section eq 'OTHER';
-                return $err->("Project already defined") if $sections{$section};
+                return $err->("Section already defined") if $sections{$section};
 
                 $new_section->($section, $2 ? $2 : $1, 0);
                 next;
@@ -1232,7 +1266,7 @@ Tells B<Raxref> how you call your project. The project identifier
 C<name> is used for file names and such, so keep it unique. The C<title>
 is in the UI.
 
-=item C<source name path>
+=item C<source name path [repo-type]>
 
 This is where your source code lives. You can have multiple C<source>
 directives. Parameters of the C<includes> and C<excludes> directives

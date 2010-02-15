@@ -48,6 +48,7 @@ pod2usage(-verbose => 2) if $opt_man;
 # TODO: Doc
 my $project_name;
 my $project_title;
+my @project_info;
 my %ftypes;
 my $output_path;
 my $token_threshold;
@@ -165,6 +166,7 @@ sub init {
     # Reset all data
     $project_name= undef;
     $project_title= undef;
+    @project_info= ();
     %ftypes= ();
     $output_path= $opt_outpath;
     %sources= ();
@@ -174,7 +176,7 @@ sub init {
     %build_sections= ();
     %analyze_sections= ();
     $token_threshold= 0.85;        # 0.1 .. 1
-}    
+}
 
 sub read_conf {
     my $file= shift;
@@ -275,10 +277,19 @@ sub read_conf {
 
             if ($line =~ /^project\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
                 return 1 if $not_void_context->();
-                return $err->("Only one 'project' directive allowed. This is the second") if $project_name;
 
+                if ($project_name) {
+                    $warn->("Extra 'project' directive ignored");
+                    next;
+                }
                 $project_name= $1;
                 $project_title= $2;
+                next;
+            }
+            if ($line =~ /^info\s+(.+)$/) {
+                return 1 if $not_void_context->();
+
+                push @project_info, $1;
                 next;
             }
             if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
@@ -427,27 +438,27 @@ sub _dir_walk {
     my @queue = shift;
     my $want_dirs= shift || 0;
     return sub {
-	while (@queue) {
+        while (@queue) {
             my $file = shift @queue;
-	    if (-d $file) {
-		next if $file =~ /\/\.[^\/]+$/;  # Skip dot directories (.svn, .git, ...)
+            if (-d $file) {
+                next if $file =~ /\/\.[^\/]+$/;  # Skip dot directories (.svn, .git, ...)
 
-		opendir my $dh, $file or next;
-		my @newfiles = grep { $_ ne "." && $_ ne ".." } readdir $dh;
+                opendir my $dh, $file or next;
+                my @newfiles = grep { $_ ne "." && $_ ne ".." } readdir $dh;
 
-		unshift @queue, map "$file/$_", @newfiles;
+                unshift @queue, map "$file/$_", @newfiles;
 
                 ## Insert sorted, so that directories come first
-		# unshift @queue, map "$file/$_", sort {
+                # unshift @queue, map "$file/$_", sort {
                 #     -d "$file/$a"
                 #         ? (-d "$file/$b" ? $a cmp $b : -1)
                 #         : (-d "$file/$b" ? 1 : $a cmp $b)
                 # } @newfiles;
 
                 next unless $want_dirs;
-	    }
+            }
             return $file;
-	}
+        }
     };
 }
 
@@ -515,7 +526,7 @@ sub collect_files {
                 my $file_key= "$source:$file";
                 my $file_no= $file_cache{"$file_key:id"};
                 my $lines= -1;
-    
+
                 if (!defined $file_no) {
                     $file_no= int($file_cache{'.count'} || 0);
                     $file_cache{"$file_key:id"}= $file_no;
@@ -559,7 +570,7 @@ sub collect_files {
                         lines_per_part => lines_per_part($lines)
                     };
                 $files_count++;
-	        last;
+                last;
             }
         }
     }
@@ -587,7 +598,7 @@ sub collect_files {
 
 sub lines_per_part {
     my $lines= shift;
-    
+
     return 0 if $lines < 0;
     return $lines if $lines < 300;
 
@@ -629,7 +640,7 @@ sub _analyze_file {
 
     my $line_no= 0;
     for my $line (split(/\n\r?/, $content)) {
-	$line_no++;
+        $line_no++;
 
         while ($line =~ /$include_re/g) {
             next if defined $exclude_re && $1 =~ $exclude_re;
@@ -745,7 +756,7 @@ sub _cleanup_tokens {
     while (my ($token, $ref_count)= each %ref_count) {
         next if $ref_count >= 2 && $ref_count <= $max_ref_count;
 
-	delete $tokens->{$token};
+        delete $tokens->{$token};
         $removed_count++;
 
         for my $section (@sections) {
@@ -767,7 +778,7 @@ sub _tokens_as_js {
 
     my @memoize_value;  # Using an array instead of a hash because it's faster
     my @chr;
-    
+
     $chr[$_]= chr($_ + 32) for 0 .. 95;
     $chr[$_]= '~' . chr($_ + 31) for 7, 60, 94, 95;  # Some chars must be escaped: "'", "~", "\", chr(127). "~" because it's our escape char
 
@@ -799,20 +810,20 @@ sub _tokens_as_js {
     for my $token (sort keys %$tokens) {
 
         # Convert "1,2:3,4" to [ [1,2], [3,4] ]
-	my @refs= sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] }
+        my @refs= sort { $a->[0] <=> $b->[0] || $a->[1] <=> $b->[1] }
                     map { [ split(/,/) ] }
                     split(/:/, $tokens->{$token});
-	my @xref;
-	my $last_file_no= 0;
-	my $last_line_no= 0;
+        my @xref;
+        my $last_file_no= 0;
+        my $last_line_no= 0;
 
-	for my $ref (@refs) {
-	    my ($file_no, $line_no)= ($ref->[0], $ref->[1]);
-	    if ($file_no != $last_file_no) {
-		push @xref, $code->(1, $file_no - $last_file_no);
-		$last_file_no= $file_no;
-	        $last_line_no= 0;
-	    }
+        for my $ref (@refs) {
+            my ($file_no, $line_no)= ($ref->[0], $ref->[1]);
+            if ($file_no != $last_file_no) {
+                push @xref, $code->(1, $file_no - $last_file_no);
+                $last_file_no= $file_no;
+                $last_line_no= 0;
+            }
             else {
                 next if $line_no == $last_line_no;
             }
@@ -820,52 +831,32 @@ sub _tokens_as_js {
             # Inlined part of $code. Makes the whole function ~25% faster.
             my $value_key= ($line_no - $last_line_no) * 2;
             if (defined $memoize_value[$value_key]) {
-	        push @xref, $memoize_value[$value_key];
+                push @xref, $memoize_value[$value_key];
                 $last_line_no= $line_no;
                 next;
             }
 
-	    push @xref, $code->(0, $line_no - $last_line_no);
+            push @xref, $code->(0, $line_no - $last_line_no);
             $last_line_no= $line_no;
-	}
+        }
 
         ## Safari doesn't like this:
         ## if (($js_keywords_re && $token =~ $js_keywords_re) || $token =~ $needs_quotes_re) {
         ##     $token= "'$token'";
         ## }
 
-	push @xrefs, "'$token':'" . join('', @xref) . "'\n";
+        push @xrefs, "'$token':'" . join('', @xref) . "'\n";
     }
     return "var tokens={" . join(',', @xrefs) . "};\n";
 }
 
-sub _tokens_as_js__old {
-    my $tokens= shift;
-
-    my @xrefs;
-    for my $token (sort keys %$tokens) {
-	my @refs= split(/:/, $tokens->{$token});
-	my @xref;
-	my $last_file_no= 0;
-	my $last_line_no= 0;
-        
-	for my $ref (@refs) {
-	    my ($file_no, $line_no)= split(/,/, $ref);
-	    if ($file_no != $last_file_no) {
-		push @xref, 'f' . ($file_no - $last_file_no);
-		$last_file_no= $file_no;
-	        $last_line_no= 0;
-	    }
-            else {
-                next if $line_no == $last_line_no;
-            }
-	    push @xref, ($line_no - $last_line_no);
-	    $last_line_no= $line_no;
-	}
-
-	push @xrefs, "'$token':'" . join(',', @xref) . "'\n";
+sub _array_as_js {
+    my $result= "";
+    for (@_) {
+        s/'/\\'/g;
+        $result .= ",'$_'";
     }
-    return "var tokens={" . join(',', @xrefs) . "};\n";
+    return '[' . substr($result, 1) . ']';
 }
 
 sub write_data_js {
@@ -902,6 +893,7 @@ sub write_data_js {
     print $fout "var project_name='$project_name';\n";
     (my $prtitle_html= $project_title) =~ s/'/\\'/g;
     print $fout "var project_title='$prtitle_html';\n";
+    print $fout "var project_info=" . _array_as_js(@project_info) . ";\n";
     print $fout _sections_as_js();
     print $fout _files_as_js(\@all_files);
     print $fout _tokens_as_js(\%all_tokens);
@@ -971,7 +963,7 @@ sub write_files {
 
     my $write_file= sub {
         my $section= shift;
-    
+
         my $files = $sections{$section}{'files'};
         my $tokens = $sections{$section}{'tokens'};
 
@@ -998,7 +990,7 @@ sub write_files {
                         $fileinfo->{'file'}, $fileinfo->{'file_no'},
                         $fileinfo->{'lines'}, $fileinfo->{'lines_per_part'});
             my $infile= $sources{$source} . '/' . $file;
-            
+
             mkdir("$output_path/raxref-$project_name");
 
             my $extra;
@@ -1017,7 +1009,7 @@ sub write_files {
 
                 $extra= ' (forced)';
             }
-            
+
             printx("Writing files for section '$section': ", int(100 * ($file_i / scalar @$files)), "% done");
             # printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
 
@@ -1026,7 +1018,7 @@ sub write_files {
             # Untabify (taken from MXR)
             # Support for vi's tab-width parameter:
             my $tabwidth= $code =~ /^#.*-[*]-.*?[ \t;]tab-width:[ \t]*([0-9]+).*-[*]-/m ? $1 : 8;
-            
+
             # I hope the 'if' speeds things up. MXR does that. Maybe for a reason...
             if ($code =~ /\t/) {
                 $code =~ s/^([^\t\n\r]*)\t/$1 . (' ' x ($tabwidth - (length($1) % $tabwidth)))/gem;
@@ -1078,7 +1070,7 @@ sub write_files {
             my $class= "";
             my $in_doc= 0;
             for (split(/\n\r?/, $code)) {
-            
+
                 # Finds "=podcmd" and "=<b class='_podcmd'>podcmd</b>"
                 # Then wraps this inside "<span class='doc-cmd'> {found} </span>"
                 if (/^=($pod_cmds\b|<b class='_$pod_cmds'>\3<\/b>)/) {
@@ -1099,7 +1091,7 @@ sub write_files {
                     $_= "<span class='doc-cmd'>$raw_cmd<\/span>$rest";
 
                     # my $cmd= $2 || $3;
-                    
+
                     if ($cmd eq 'cut') {
                         $class= " class='doc doc-end'";
                         $in_doc= 0;
@@ -1204,7 +1196,7 @@ __END__
 
 =head1 NAME
 
-Raxref - Simple, lightweight and fast interactive cross reference generator.
+Raxref - Simple, lightweight and fast cross reference generator.
 
 =head1 SYNOPSIS
 
@@ -1277,16 +1269,6 @@ B<Raxref> takes a source tree and generates an interactive
 web application consisting of a source browser and,
 mostly important, a cross reference.
 
-It was originally written to understand the Parrot project,
-but you may use it for any project, because it's
-not Parrot-specific at all.
-
-B<Raxref> is somewhat like MXR (Mozilla Cross Referencer) or
-LXR (Linux Cross Referencer), but much simpler to use and
-(I think) with a more user friendly output.
-
-There's also a bundled config file suitable for Parrot.
-
 The default config file is F<raxref.conf>.
 
 B<Raxref> doesn't need a configuration file but you probably want
@@ -1296,6 +1278,28 @@ and help B<raxref> to make the output more convenient.
 To force a build of certain sections, add them to the command line, or
 use the C<--all> switch to rebuild everything. C<--all> will also rebuild
 all caches.
+
+=head1 TRIVIA
+
+It was originally written to understand the Parrot project,
+but you may use it for any project, because it's
+not Parrot-specific at all.
+
+B<Raxref> is somewhat like MXR (Mozilla Cross Referencer) or
+LXR (Linux Cross Referencer), but much simpler to use and
+(I think) with a more user friendly output.
+
+B<Raxref> tries to cache a lot, so it takes a little more
+time on the first run, and then gets really fast.
+
+The output of B<Raxref> was designed to be web browser friendly.
+This means that instead of fetching huge files, most are broken into small
+pieces. The browser also will fetch stuff in parallel. So hopefully your
+patience won't be taxed. (Things could be even better by compressing the
+output, but most web servers would have to be configured to support
+that properly. So for now that's left out. Sorry, Mr. Souders)
+
+There's also a bundled config file suitable for Parrot.
 
 =head1 CONFIG FILES
 
@@ -1323,6 +1327,10 @@ Tells B<Raxref> how you call your project. The project identifier
 C<name> is used for file names and such, so keep it unique. The C<title>
 will appear in the generated user interface.
 
+=item C<info text>
+
+TBD
+
 =item C<source name path [repo-type]>
 
 This is where your source code lives. You can have multiple C<source>
@@ -1334,6 +1342,13 @@ The optional C<repo-type> may be C<git> or C<svn> and will only be used
 to retrieve version information.
 
 =item C<section name title>
+
+Mainly a collection of parts of the source tree.
+
+There are two special section names:
+
+ C<OMIT>   Everything in this section will be omitted
+ C<OTHER>  Everything that doesn't go in any other section will go in here
 
 TBD
 
@@ -1382,31 +1397,49 @@ If you want less, specify a small value.
 =item C<filetype name title>
 
 You won't need that.
+
+See F<conf/std.conf> for an example.
+
 TBD
 
 =item C<keywords keyword1 keyword2 ...>
 
 You won't need that.
+
+See F<conf/std.conf> for an example.
+
 TBD
 
 =item C<keywords_from filetype>
 
 You won't need that.
+
+See F<conf/std.conf> for an example.
+
 TBD
 
 =item C<file_re regex>
 
 You won't need that.
+
+See F<conf/std.conf> for an example.
+
 TBD
 
 =item C<tokens_exclude_re>
 
 You won't need that.
+
+See F<conf/parrot.conf> for an example.
+
 TBD
 
 =item C<tokens_include_re>
 
 You won't need that.
+
+See F<conf/parrot.conf> for an example.
+
 TBD
 
 =back

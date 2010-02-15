@@ -505,13 +505,22 @@ jQuery(function($) {
         });
 
         var showProject= function() {
-            var result= [];
+            var projectInfoHtml= [];
+            if ( project_info ) {       // be downward compatible
+                for (var info_i in project_info) {
+                    projectInfoHtml.push("<div>" + project_info[info_i] + "</div>");
+                }
+            }
+            var sectionHtml= [];
             for (var section_i in sections) {
                 var section= sections[section_i];
-                result.push("<li><b ref='" + section_i + "'>" + section[1] + "</b></li>");
+                sectionHtml.push("<li><b ref='" + section_i + "'>" + section[1] + "</b></li>");
             }
 
             showText(htmlize(project_title), ""
+                + "<div class='info'>"
+                +   projectInfoHtml.join("")
+                + "</div>"
                 + "<div class='token-search'>"
                 +   "<h1>Tokens</h1>"
                 +   "<form><input /></form>"
@@ -519,7 +528,7 @@ jQuery(function($) {
                 + "</div>"
                 + "<div class='sections simple-ol to-section'><ol>"
                 +   "<li><h1>Sections</h1></li>"
-                +   result.join("")
+                +   sectionHtml.join("")
                 + "</ol></div>"
             );
         };

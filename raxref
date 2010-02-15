@@ -1204,58 +1204,115 @@ __END__
 
 =head1 NAME
 
-Raxref - Simple, lightweight and fast Cross Referencing
-        
+Raxref - Simple, lightweight and fast interactive cross reference generator.
+
 =head1 SYNOPSIS
 
-raxref [--conf=file] [options] [section ...]
+B<raxref [--conf=file] [options] [section ...]>
 
-raxref --source=path [options] [section ...]
+B<raxref --source=path [options] [section ...]>
 
 Use the first variant to use F<file> as conf file, or F<raxref.conf> as
 default if omitted. Use the second variant to simply specify the source
 path on the command line, auto-including F<conf/std.conf>.
 
  Options:
-    --help (-h)              brief help message
-    --man (-m)               man page. Similar to "perldoc raxref"
+    --help (-h)              output a brief help message
+    --man (-m)               output the man page (Similar to C<perldoc raxref>)
     --conf=file (-c file)    config file. Defaults to "raxref.conf"
     --all (-a)               rebuild all sections
     --outpath=path (-o path) output path. Defaults to "output"
-                             (overrides conf file directive "output_path")
     --quiet (-q)             omit console output
 
 Use C<raxref --man> for more information.
-                                                   
+
+=head1 EXAMPLES
+
+B<raxref --source=~/parrot --outpath=/www/docs/parrot/html>
+
+Raxref will scan the directory "~/parrot", grab everything it can find,
+and output an interactive cross reference to "/www/docs/parrot/html".
+
+B<raxref --conf raxref-parrot_rakudo.conf --outpath=/www/docs/parrot/html>
+
+Raxref will read the configuration from "raxref-parrot_rakudo.conf", grab
+everything it can find the paths described in it, and output an interactive
+cross reference to "/www/docs/parrot/html".
+
+=head1 OPTIONS
+
+=over
+
+=item --help (-h)
+
+Output a brief help message.
+
+=item --man (-m)
+
+Output the man page. This is similar to C<perldoc raxref>
+
+=item --conf=file (-c file)
+
+Specify the config file. Defaults to F<raxref.conf> or to none if
+C<--source> is specified.
+
+=item --all (-a)
+
+Rebuild all sections.
+
+=item --outpath=path (-o path)
+
+Specifiy the output path. Defaults to "output".
+This overrides any given configuration directive "output_path".
+
+=item --quiet (-q)
+
+Omit console output.
+
+=back
+
 =head1 DESCRIPTION
 
-B<Raxref> was originally written to build a browsable cross reference
-for the Parrot project. But you may use it for any project, because it's
-not Parrot-specific at all, except that there's a bundled config file
-suitable for Parrot.
+B<Raxref> takes a source tree and generates an interactive
+web application consisting of a source browser and,
+mostly important, a cross reference.
+
+It was originally written to understand the Parrot project,
+but you may use it for any project, because it's
+not Parrot-specific at all.
+
+B<Raxref> is somewhat like MXR (Mozilla Cross Referencer) or
+LXR (Linux Cross Referencer), but much simpler to use and
+(I think) with a more user friendly output.
+
+There's also a bundled config file suitable for Parrot.
 
 The default config file is F<raxref.conf>.
+
+B<Raxref> doesn't need a configuration file but you probably want
+one for big projects because you can specify different sections
+and help B<raxref> to make the output more convenient.
 
 To force a build of certain sections, add them to the command line, or
 use the C<--all> switch to rebuild everything. C<--all> will also rebuild
 all caches.
 
-=head2 CONFIG FILES
+=head1 CONFIG FILES
 
 The config files describe your project repository. Usually two lines
 will be sufficient:
 
   include conf/std.conf
   source myproject /home/me/projects/myproject
-                                                        
-This tells raxref that you want to use the standard filtetype
-definitions from 'std.conf' and where to find the sources of your
+
+This tells B<raxref> that you want to use the standard file type
+definitions from 'std.conf', and where to find the sources of your
 project.
 
-Running B<raxref -c myproject.conf> will produce the cross reference
-information and store it in the directory F<output>.
+Running B<raxref -c myproject.conf> will generate the web application
+in the directory F<output>.
 
-If you want to describe your project in more detail, this are the
+If you want to describe your project in more detail, these are the
 directives that B<Raxref> will accept in conf files:
 
 =over
@@ -1264,7 +1321,7 @@ directives that B<Raxref> will accept in conf files:
 
 Tells B<Raxref> how you call your project. The project identifier
 C<name> is used for file names and such, so keep it unique. The C<title>
-is in the UI.
+will appear in the generated user interface.
 
 =item C<source name path [repo-type]>
 
@@ -1273,13 +1330,8 @@ directives. Parameters of the C<includes> and C<excludes> directives
 must then be prefixed with the C<source> name followed by a colon, e.g.
 C<includes inclsrc:/includes>.
 
-=item C<output_path path>
-
-TBD
-
-=item C<token_threshold value>
-
-TBD
+The optional C<repo-type> may be C<git> or C<svn> and will only be used
+to retrieve version information.
 
 =item C<section name title>
 
@@ -1287,38 +1339,74 @@ TBD
 
 =item C<omit>
 
+In C<section> context.
+
+The section will be omitted in the output.
+
+=item C<includes source-name:path>
+
+In C<section> context.
+
+C<source-name> is a source name (see C<source>).
+
+C<path> is a relative path to the path specified by C<source-name>.
+
+Example:
+
+ source src ~/project/src
+
+ section tools  Tools and Docs
+ includes src:/tools
+ excludes src:/tools/temp
+
+=item C<excludes source:path>
+
+In C<section> context.
+
+See C<includes>.
+
 TBD
 
-=item C<includes path>
+=item C<output_path path>
 
-TBD
+Specifies the output path for the files C<Raxref> generates.
 
-=item C<excludes path>
+=item C<token_threshold value>
 
-TBD
+Rarely needed.
+C<value> is a number from C<0.1> to C<1.0> (default is C<0.85>).
+B<Raxref> removes tokens from the cross reference if they are to infrequent.
+If you want more tokens, set C<token_threshold> to C<1.0>.
+If you want less, specify a small value.
 
 =item C<filetype name title>
 
+You won't need that.
 TBD
 
 =item C<keywords keyword1 keyword2 ...>
 
+You won't need that.
 TBD
 
 =item C<keywords_from filetype>
 
+You won't need that.
 TBD
 
 =item C<file_re regex>
 
+You won't need that.
 TBD
 
 =item C<tokens_exclude_re>
 
+You won't need that.
 TBD
 
 =item C<tokens_include_re>
 
+You won't need that.
 TBD
 
 =back
@@ -1327,5 +1415,5 @@ TBD
 
 If you like this product, you may also like rabak (http://www.raisin.de/rabak),
 a powerful, rsync based backup solution.
-                                                                           
+
 =cut

@@ -1178,7 +1178,7 @@ if ($opt_source) {
     ) and exit 1;
 }
 else {
-    read_conf($opt_conf || "raxref.conf") and exit 1;
+    read_conf($opt_conf || "raxref.conf") and (print("Try '$0 --help'\n"), exit 1);
 }
 
 $output_path= $opt_outpath || "output" unless $output_path;
@@ -1230,17 +1230,6 @@ B<raxref --source=path [options] [section ...]>
 Use the first variant to use F<file> as conf file, or F<raxref.conf> as
 default if omitted. Use the second variant to simply specify the source
 path on the command line, auto-including F<conf/std.conf>.
-
- Options:
-    --help (-h)              output a brief help message
-    --man (-m)               output the man page (Similar to C<perldoc raxref>)
-    --conf=file (-c file)    config file. Defaults to "raxref.conf"
-    --all (-a)               rebuild all sections
-    --outpath=path (-o path) output path. Defaults to "output"
-    --quiet (-q)             omit console output
-    --zip (-z)               generate zipped files
-
-Use C<raxref --man> for more information.
 
 =head1 EXAMPLES
 

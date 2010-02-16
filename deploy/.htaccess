@@ -1,0 +1,27 @@
+
+<IfModule mod_rewrite.c>
+
+    <FilesMatch "\.css\.gz$">
+        ForceType text/css
+        Header set Content-Encoding: gzip
+    </FilesMatch>
+
+    <FilesMatch "\.js\.gz$">
+        ForceType text/javascript
+        Header set Content-Encoding: gzip
+    </FilesMatch>
+
+    <FilesMatch "\.html\.gz$">
+        ForceType text/html
+        Header set Content-Encoding: gzip
+    </FilesMatch>
+
+    RewriteEngine       On
+
+    RewriteCond     %{HTTP:Accept-Encoding} gzip
+    RewriteCond     %{REQUEST_URI}          \.(css|js|html)$
+    RewriteCond     %{HTTP_USER_AGENT}      !^Mozilla/4
+    RewriteCond     %{REQUEST_FILENAME}.gz  -f
+    RewriteRule     (.*)\.(css|js|html)$    $1.$2.gz
+
+</IfModule>

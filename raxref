@@ -40,8 +40,9 @@ our $opt_all;
 our $opt_outpath;
 our $opt_help;
 our $opt_man;
+our $opt_zip;
 
-GetOptions( "quiet|q", "conf|c=s", "source|s=s", "all|a", "outpath|o=s", "help|h", "man|m" ) or pod2usage(2);
+GetOptions( "quiet|q", "conf|c=s", "source|s=s", "all|a", "outpath|o=s", "zip|z", "help|h", "man|m" ) or pod2usage(2);
 pod2usage(-verbose => 1) if $opt_help;
 pod2usage(-verbose => 2) if $opt_man;
 
@@ -119,16 +120,29 @@ sub read_file {
     return $result;
 }
 
+sub zip_file {
+    my $file= shift;
+    `gzip -9 -c "$file" > "$file.gz"`;
+}
+
 sub write_file {
     my $file= shift;
     my $content= shift;
+    my $zip_it= shift;
 
     my $fout;
     open $fout, ">$file" or die "Can't write '$file'";
     print $fout $content;
     close $fout;
+
+    zip_file($file) if $zip_it;
 }
 
+sub jsify {
+    my $text= shift;
+    $text =~ s/'/\\'/g;
+    return $text;
+}
 
 ###############################################################################
 #
@@ -290,6 +304,13 @@ sub read_conf {
                 return 1 if $not_void_context->();
 
                 push @project_info, $1;
+                next;
+            }
+            if ($line =~ /^zip$/) {
+                return 1 if $not_void_context->();
+
+                # untested :-/
+                $opt_zip= 1;
                 next;
             }
             if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
@@ -600,11 +621,15 @@ sub lines_per_part {
     my $lines= shift;
 
     return 0 if $lines < 0;
-    return $lines if $lines < 300;
+
+    # If stuff is zipped, hand back bigger parts
+    my $factor= $opt_zip ? 3 : 1;
+
+    return $lines if $lines < 300 * $factor;
 
     $lines= ceil($lines / 15);
-    return 200 if $lines < 200;
-    return 1500 if $lines > 1500;
+    return 200 * $factor if $lines < 200 * $factor;
+    return 1500 * $factor if $lines > 1500 * $factor;
     return $lines;
 }
 
@@ -852,10 +877,7 @@ sub _tokens_as_js {
 
 sub _array_as_js {
     my $result= "";
-    for (@_) {
-        s/'/\\'/g;
-        $result .= ",'$_'";
-    }
+    $result .= ",'" . jsify($_) . "'" for @_;
     return '[' . substr($result, 1) . ']';
 }
 
@@ -886,18 +908,17 @@ sub write_data_js {
 
     mkdir("$output_path/raxref-$project_name");
 
-    my $fout;
-    open $fout, ">$output_path/raxref-$project_name/data.js" or die "Can't write '$output_path/raxref-$project_name/data.js'";
-    print $fout "// Generated file. Changes useless\n";
-    print $fout "var files_path='raxref-$project_name';\n";
-    print $fout "var project_name='$project_name';\n";
-    (my $prtitle_html= $project_title) =~ s/'/\\'/g;
-    print $fout "var project_title='$prtitle_html';\n";
-    print $fout "var project_info=" . _array_as_js(@project_info) . ";\n";
-    print $fout _sections_as_js();
-    print $fout _files_as_js(\@all_files);
-    print $fout _tokens_as_js(\%all_tokens);
-    close $fout;
+    my $content= "// Generated file. Changes useless\n"
+        . "var files_path='raxref-$project_name';\n"
+        . "var project_name='$project_name';\n"
+        . "var project_title='" . jsify($project_title) . "';\n"
+        . "var project_info=" . _array_as_js(@project_info) . ";\n"
+        . _sections_as_js()
+        . _files_as_js(\@all_files)
+        . _tokens_as_js(\%all_tokens)
+    ;
+
+    write_file("$output_path/raxref-$project_name/data.js", $content, $opt_zip);
 
     printnl("Writing 'data.js': finished");
 }
@@ -913,6 +934,7 @@ sub deploy_requirements {
 
     my $copy= sub {
         my $target= shift;
+        my $zip_it= shift;
         my @sources= @_;
 
         printx("Deploying requirements: $target");
@@ -925,7 +947,7 @@ sub deploy_requirements {
             return if mtime($source) <= mtime($target);
             $content .= read_file($source);
         }
-        write_file($target, $content);
+        write_file($target, $content, $zip_it);
     };
 
     printx("Deploying requirements: running...");
@@ -933,15 +955,16 @@ sub deploy_requirements {
     # Take into template and build main HTML file
     my $template= read_file("deploy/raxref-template.html") or die "Can't read 'deploy/raxref.html'";
     $template =~ s/\{\{PROJECT_FILES_PATH\}\}/raxref-$project_name/;
-    write_file("$output_path/raxref-$project_name.html", $template);
+    write_file("$output_path/raxref-$project_name.html", $template, $opt_zip);
 
     # TODO: Make a link to index.html optional
     if (0 && !-e "$output_path/input.html") {
         eval { symlink("raxref-$project_name.html", "$output_path/index.html"); 1 };
     }
-    $copy->("raxref.js");
-    $copy->("raxref-all.css");
-    $copy->("raxref-requirements.js",
+    $copy->(".htaccess");
+    $copy->("raxref.js", $opt_zip);
+    $copy->("raxref-all.css", $opt_zip);
+    $copy->("raxref-requirements.js", $opt_zip,
         "jquery-1.3.2.min.js",
         "jquery.color-1.0.js",
         "jquery.scrollTo-1.4.0.min.js",
@@ -1116,7 +1139,7 @@ sub write_files {
             for my $out (@outfiles) {
                 $code= "<!-- $source" . ":$file, lines " . ($out->[1] + 1) . ".." . ($out->[2] + 1) . " of $lines -->"
                     . join("\n", @result[$out->[1] .. $out->[2]]);
-                write_file($out->[0], $code);
+                write_file($out->[0], $code, $opt_zip);
             }
 
             $file_i++;
@@ -1215,6 +1238,7 @@ path on the command line, auto-including F<conf/std.conf>.
     --all (-a)               rebuild all sections
     --outpath=path (-o path) output path. Defaults to "output"
     --quiet (-q)             omit console output
+    --zip (-z)               generate zipped files
 
 Use C<raxref --man> for more information.
 
@@ -1260,6 +1284,12 @@ This overrides any given configuration directive "output_path".
 =item --quiet (-q)
 
 Omit console output.
+
+=item --zip (-z)
+
+Generate additional zipped output.
+If you configure your web server accordingly, the files can be served much
+more efficiently.
 
 =back
 
@@ -1328,6 +1358,16 @@ C<name> is used for file names and such, so keep it unique. The C<title>
 will appear in the generated user interface.
 
 =item C<info text>
+
+TBD
+
+=item C<zip>
+
+Turn on generation of compressed output - suitable for being served from
+a properly configured web server.
+
+The output directory will contain a F<.htaccess> file for Apache that
+turns on compression.
 
 TBD
 

@@ -960,8 +960,9 @@ sub deploy_requirements {
 
     # Take into template and build main HTML file
     my $template= read_file("deploy/raxref-template.html") or die "Can't read 'deploy/raxref.html'";
-    $template =~ s/\{\{PROJECT_FILES_PATH\}\}/raxref-$project_name/;
-    $template =~ s/\{\{TRACKER_CODE\}\}/join("\n", @tracker_code)/e;
+    $template =~ s/\{\{TITLE\}\}/$project_title - Source Code and Cross Reference/g;
+    $template =~ s/\{\{PROJECT_FILES_PATH\}\}/raxref-$project_name/g;
+    $template =~ s/\{\{TRACKER_CODE\}\}/join("\n", @tracker_code)/eg;
     write_file("$output_path/raxref-$project_name.html", $template, $opt_zip);
 
     # TODO: Make a link to index.html optional

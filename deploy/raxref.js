@@ -693,5 +693,5 @@ jQuery(function($) {
         })
     ;
 
-    document.title= project_title + ' - Raxref';
+    $('#loading').hide();
 });

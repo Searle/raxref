@@ -32,8 +32,16 @@ div {
 }
 
 .round-corners {
+    -border-radius: 0.25em;
     -moz-border-radius: 0.25em;
     -webkit-border-radius: 0.25em;
+}
+
+#for-search-engines, #tracker-code {
+    position: absolute;
+    width: 1px;
+    left: -10px;
+    overflow: hidden;
 }
 
 #slots {

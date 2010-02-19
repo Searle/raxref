@@ -1,18 +1,28 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<!-- Built with Raxref. -->
-<!-- Home page: http://github.com/Searle/raxref/tree/master -->
+<!-- Generated with Raxref. -->
+<!-- Home page: http://github.com/Searle/raxref -->
 <!-- Author: Dietrich Raisin, info1@raisin.de -->
-<!-- License: see LICENSE file -->
+<!-- Raxref License: see LICENSE file -->
 <html>
 <head>
-    <title>Raxref - Loading...</title>
+    <title>{{TITLE}}</title>
     <script src='raxref-requirements.js'></script>
     <script src='raxref.js'></script>
     <script src='{{PROJECT_FILES_PATH}}/data.js'></script>
     <link rel='stylesheet' type='text/css' href='raxref-all.css'></link>
 </head>
 <body>
+    <div id='for-search-engines'>
+        <h1>{{TITLE}}</h1>
+        <p>Here you find the browsable source code with a full cross reference for this project.</p>
+        <p>Generated with <a href="http://github.com/Searle/raxref">Raxref</a></p>
+    </div>
+    <div id='loading'>
+        Loading, please wait a moment...
+    </div>
     <div id='slots'></div>
-    {{TRACKER_CODE}}
+    <div id='tracker-code'>
+        {{TRACKER_CODE}}
+    </div>
 </body>
 </html>

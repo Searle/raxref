@@ -53,6 +53,7 @@ my @project_info;
 my %ftypes;
 my $output_path;
 my $token_threshold;
+my @tracker_code;
 
 # Contains: $sources[$source]= $path
 my %sources;
@@ -190,6 +191,7 @@ sub init {
     %build_sections= ();
     %analyze_sections= ();
     $token_threshold= 0.85;        # 0.1 .. 1
+    @tracker_code= ();
 }
 
 sub read_conf {
@@ -244,7 +246,7 @@ sub read_conf {
 
         my $warn= sub {
             my $message= shift;
-            printnl("WARNING in '$file', line $line_i:\n  $message!\n The current line is '$line'");
+            printnl("WARNING in '$file', line $line_i:\n  $message!\n  The current line is '$line'");
         };
 
         my $not_void_context= sub {
@@ -311,6 +313,10 @@ sub read_conf {
 
                 # untested :-/
                 $opt_zip= 1;
+                next;
+            }
+            if ($line =~ /^tracker_code\s+(.*)$/) {
+                push @tracker_code, $1;
                 next;
             }
             if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
@@ -955,6 +961,7 @@ sub deploy_requirements {
     # Take into template and build main HTML file
     my $template= read_file("deploy/raxref-template.html") or die "Can't read 'deploy/raxref.html'";
     $template =~ s/\{\{PROJECT_FILES_PATH\}\}/raxref-$project_name/;
+    $template =~ s/\{\{TRACKER_CODE\}\}/join("\n", @tracker_code)/e;
     write_file("$output_path/raxref-$project_name.html", $template, $opt_zip);
 
     # TODO: Make a link to index.html optional

@@ -88,7 +88,7 @@ jQuery(function($) {
                     if (fetching == 0 && doneFn) doneFn();
                     return;
                 }
-                
+
                 var currentCount= fetchCount;
                 jQuery.ajax({
                     url: next[0],
@@ -274,9 +274,9 @@ jQuery(function($) {
                     v= 0;
                 }
             }
-            
+
             if (v) console.error("V MUST BE 0!!");
-            
+
             if (xref.line_nos.length) xrefList.push(xref);
             return xrefList;
         };
@@ -333,7 +333,7 @@ jQuery(function($) {
             var result= [];
             var fetch= [];
             var lastFile= null;
-            
+
             for (var xrefList_i in xrefList) {
                 var xref= xrefList[xrefList_i];
                 result.push("<ol><li><h1>", htmlize_filename(filename(xref.file_no)), "</h1></li>");
@@ -389,7 +389,7 @@ jQuery(function($) {
             var file_length= files[file_no][1];
             var file_split= files[file_no][0];
             var parts= [];
-            
+
             if (typeof line_no == 'undefined') line_no= -1;
 
             var scrollToLine= function() {
@@ -692,6 +692,4 @@ jQuery(function($) {
             }
         })
     ;
-
-    $('#loading').hide();
 });

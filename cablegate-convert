@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+
+# To use this, you need a following pre requisites:
+# - Unzip the cablegate data in: cablegate/raw
+# - Mkdir: cablegate/cooked
+# - Run: ./raxref -c raxref-cablegate.conf
+# - Your cablegate cross reference is now in: output
+
+use strict;
+use warnings;
+
+use Data::Dumper;
+
+use HTML::TreeBuilder;
+use HTML::TableExtract;
+
+my $in_dir= "cablegate/raw";
+my $out_dir= "cablegate/cooked";
+
+# Taken from raxref
+sub read_file {
+    my $file= shift;
+    local $/= undef;
+    my $fin;
+    open $fin, $file or return "";
+    my $result= <$fin>;
+    close $fin;
+    return $result;
+}
+
+# Taken from raxref
+sub zip_file {
+    my $file= shift;
+    `gzip -9 -c "$file" > "$file.gz"`;
+}
+
+# Taken from raxref
+sub write_file {
+    my $file= shift;
+    my $content= shift;
+    my $zip_it= shift;
+
+    my $fout;
+    open $fout, ">$file" or die "Can't write '$file'";
+    print $fout $content;
+    close $fout;
+
+    zip_file($file) if $zip_it;
+}
+
+# Implements an directory reader as Iterator
+# Taken from raxref
+# Read "Higher Order Perl" by MJ Dominus
+sub _dir_walk {
+    my @queue = shift;
+    my $want_dirs= shift || 0;
+    return sub {
+        while (@queue) {
+            my $file = shift @queue;
+            if (-d $file) {
+                next if $file =~ /\/\.[^\/]+$/;  # Skip dot directories (.svn, .git, ...)
+
+                opendir my $dh, $file or next;
+                my @newfiles = grep { $_ ne "." && $_ ne ".." } readdir $dh;
+
+                unshift @queue, map "$file/$_", @newfiles;
+                next unless $want_dirs;
+            }
+            return $file;
+        }
+    };
+}
+
+my $dir_it= _dir_walk("$in_dir/cable");
+
+while ( my $in_file= $dir_it->() ) {
+    print "$in_file\n";
+
+    my $out_file= $in_file;
+    $out_file =~ s/^$in_dir\///;
+    $out_file =~ s/\//_/g;
+    $out_file =~ s/\.html$/.txt/g;
+    $out_file= "$out_dir/$out_file";
+
+    print "$in_file -> $out_file\n";
+
+    my $tree= HTML::TreeBuilder->new_from_file($in_file);
+
+    write_file($out_file, join("\n"
+        , join(" ", map { $_->as_text } $tree->look_down('_tag', 'td'))
+        , '', ''
+        , (map { $_->as_text } $tree->look_down('_tag', 'code'))
+        , ''
+    ));
+}

@@ -53,6 +53,7 @@ my @project_info;
 my %ftypes;
 my $output_path;
 my $token_threshold;
+my $ignore_token_case;
 my @tracker_code;
 
 # Contains: $sources[$source]= $path
@@ -170,6 +171,9 @@ sub get_repo_info {
         $info =~ /^Date:\s+(\S+)/m;
         $info{'version'}= $1 if $1;
     }
+    if ($repo_type eq '') {
+        $info{'version'}= 'None';
+    }
     chdir $old_path;
 
     return { error => "No version info found" } unless $info{'version'};
@@ -191,6 +195,7 @@ sub init {
     %build_sections= ();
     %analyze_sections= ();
     $token_threshold= 0.85;        # 0.1 .. 1
+    $ignore_token_case= undef;
     @tracker_code= ();
 }
 
@@ -249,11 +254,12 @@ sub read_conf {
             printnl("WARNING in '$file', line $line_i:\n  $message!\n  The current line is '$line'");
         };
 
-        my $not_void_context= sub {
-            return $err->("Not valid inside 'section' declaration") if $section;
-            return $err->("Not valid inside 'filetype' declaration") if $ftype;
-            return 0;
-        };
+        # Overdesign, removed.
+        # my $not_void_context= sub {
+        #     return $err->("Not valid inside 'section' declaration") if $section;
+        #     return $err->("Not valid inside 'filetype' declaration") if $ftype;
+        #     return 0;
+        # };
 
         my $not_section_context= sub {
             return $err->("'section' declaration missing") unless $section;
@@ -292,7 +298,7 @@ sub read_conf {
             # Void context
 
             if ($line =~ /^project\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
 
                 if ($project_name) {
                     $warn->("Extra 'project' directive ignored");
@@ -303,13 +309,13 @@ sub read_conf {
                 next;
             }
             if ($line =~ /^info\s+(.+)$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
 
                 push @project_info, $1;
                 next;
             }
             if ($line =~ /^zip$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
 
                 # untested :-/
                 $opt_zip= 1;
@@ -320,13 +326,13 @@ sub read_conf {
                 next;
             }
             if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
 
-                my ($name, $path, $repo_type)= ($1, $2, $4);
+                my ($name, $path, $repo_type)= ($1, $2, $4 || '');
                 $path =~ s/^~/$ENV{HOME}/;
                 return $err->("Source already defined") if $sources{$name};
                 return $err->("Source path '$path' is not a directory") unless -d $path;
-                return $err->("Repository type not supported. Supported: git, svn.") if $repo_type ne 'git' && $repo_type ne 'svn';
+                return $err->("Repository type not supported. Supported: git, svn.") if $repo_type && $repo_type ne 'git' && $repo_type ne 'svn';
 
                 $default_source= $name unless $default_source;
                 $sources{$name}= $path;
@@ -335,7 +341,7 @@ sub read_conf {
                 next;
             }
             if ($line =~ /^output_path\s+(.+)$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
                 next if $opt_outpath;
                 return $err->("Output path '$1' is not a directory") unless -d $1;
 
@@ -344,10 +350,17 @@ sub read_conf {
                 next;
             }
             if ($line =~ /^token_threshold\s+(\d+)$/) {
-                return 1 if $not_void_context->();
+                # return 1 if $not_void_context->();
                 return $err->("Valid threshold values are from 10 to 100") if $1 < 10 || $1 > 100;
 
                 $token_threshold = $1 / 100;
+                next;
+            }
+            if ($line =~ /^ignore_token_case\s+(\d+)$/) {
+                # return 1 if $not_void_context->();
+                return $err->("Valid ignore_token_case values are 0 or 1") if $1 < 0 || $1 > 1;
+
+                $ignore_token_case = $1;
                 next;
             }
 
@@ -581,7 +594,6 @@ sub collect_files {
 
                             # We need to know the number of lines in the file. If it's missing,
                             # we'll have to re-analyze:
-                            $analyze_sections{$section}= 3;
                             $must_analyze->($section, "missing file length(s)");
                         }
                     }
@@ -676,7 +688,8 @@ sub _analyze_file {
         while ($line =~ /$include_re/g) {
             next if defined $exclude_re && $1 =~ $exclude_re;
 
-            push @{ $tokens->{$1} }, "$file_no,$line_no";
+            my $token= $ignore_token_case ? uc($1) : $1;
+            push @{ $tokens->{$token} }, "$file_no,$line_no";
         }
     }
 
@@ -883,6 +896,8 @@ sub _tokens_as_js {
 
 sub _array_as_js {
     my $result= "";
+    return '[]' unless @_;
+
     $result .= ",'" . jsify($_) . "'" for @_;
     return '[' . substr($result, 1) . ']';
 }
@@ -1005,6 +1020,8 @@ sub write_files {
         # We build a RegEx that matches either these tokens or <\d+>. Later we will
         # temporarily replace the occurancies by <$counter++> and memorize all found
         # occurancies in @repl[$counter]. After were finished the replacements are undone.
+        #
+        # Known bug: ignore_token_case is not supported.
         my @special_tokens;
         for (keys %$tokens) {
             push @special_tokens, quotemeta($_) if /\S\b\S/;
@@ -1042,7 +1059,6 @@ sub write_files {
             }
 
             printx("Writing files for section '$section': ", int(100 * ($file_i / scalar @$files)), "% done");
-            # printx("Writing files for section '$section': ", int(1000 * ($file_i / scalar @$files)) / 10, "% done, current$extra file '", $infile, "'");
 
             my $code= read_file($infile);
 
@@ -1088,6 +1104,11 @@ sub write_files {
 
                 # Possible optimisation: check for keywords here in a similar manner
                 # Probably needed for PHP. Didn't test yet...
+
+                if ( $ignore_token_case ) {
+                    $_= "<b class='_" . uc($_) . "'>$_</b>" if defined $tokens->{uc($_)};
+                    next;
+                }
 
                 $_= "<b class='_$_'>$_</b>" if defined $tokens->{$_};
             }
@@ -1142,9 +1163,11 @@ sub write_files {
                 push @result, "<li$class>$_</li>";
             }
 
-            # $code= "<!-- $source" . ":$file -->" . join("\n", @result);
-
             for my $out (@outfiles) {
+
+                # I keep getting "Use of uninitialized value in join or string" warnings in newer perl versions.
+                # I don't know why, as everything looks fine. Have to turn it off. :-/
+                no warnings qw(uninitialized);
                 $code= "<!-- $source" . ":$file, lines " . ($out->[1] + 1) . ".." . ($out->[2] + 1) . " of $lines -->"
                     . join("\n", @result[$out->[1] .. $out->[2]]);
                 write_file($out->[0], $code, $opt_zip);
@@ -1430,6 +1453,10 @@ C<value> is a number from C<0.1> to C<1.0> (default is C<0.85>).
 B<Raxref> removes tokens from the cross reference if they are to infrequent.
 If you want more tokens, set C<token_threshold> to C<1.0>.
 If you want less, specify a small value.
+
+=item C<ignore_token_case>
+
+Ignore token case. 'Test' is assumed to be same as 'tEsT'.
 
 =item C<filetype name title>
 

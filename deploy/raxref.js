@@ -206,7 +206,7 @@ jQuery(function($) {
                 $lastLiH1= $el;
                 return true;
             };
-            
+
             $('#slot' + id + ' .body li').each(function(el_i, el) {
 
                 var $el= $(el);
@@ -335,8 +335,14 @@ jQuery(function($) {
             var lastFile= null;
 
             for (var xrefList_i in xrefList) {
+                xrefList[xrefList_i].filename= filename(xrefList[xrefList_i].file_no);
+            }
+
+            xrefList.sort(function(a, b) { return strcmp(a.filename, b.filename); });
+
+            for (var xrefList_i in xrefList) {
                 var xref= xrefList[xrefList_i];
-                result.push("<ol><li><h1>", htmlize_filename(filename(xref.file_no)), "</h1></li>");
+                result.push("<ol><li><h1>", htmlize_filename(xref.filename), "</h1></li>");
                 for (var line_no_i in xref.line_nos) {
                     var line_no= xref.line_nos[line_no_i];
                     result.push("<li>",
@@ -605,6 +611,12 @@ jQuery(function($) {
         $el.css('background-color', 'yellow');
     };
 
+    var elToken= function(el) {
+        var match= el.className.match(/\b_([A-Za-z_0-9]+)/);
+        if (match) return match[1];
+        return '.notfound';
+    };
+
     var clickLineNo= function($el) {
         markVisited($el);
         var pos= $el.attr('rel').split(':');
@@ -614,10 +626,10 @@ jQuery(function($) {
     // Code Token behaviours
     $('.code b, .code .link')
         .live('mouseover', function(ev) {
-            $("._" + quotemeta($(this).text())).addClass("xover");
+            $("._" + elToken(this)).addClass("xover");
         })
         .live('mouseout', function(ev) {
-            $("._" + quotemeta($(this).text())).removeClass("xover");
+            $("._" + elToken(this)).removeClass("xover");
         })
         .live('click', function(ev) {
             if (ev.button) return;
@@ -631,7 +643,7 @@ jQuery(function($) {
                 }
             }
             markVisited($this);
-            slotX.showXref($this.text());
+            slotX.showXref(elToken(this));
         })
     ;
 

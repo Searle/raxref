@@ -297,7 +297,7 @@ sub read_conf {
 
             # Void context
 
-            if ($line =~ /^project\s+([A-Za-z][A-Za-z0-9_]*)\s+(.+)$/) {
+            if ($line =~ /^project\s+([A-Za-z][-A-Za-z0-9_]*)\s+(.+)$/) {
                 # return 1 if $not_void_context->();
 
                 if ($project_name) {
@@ -325,7 +325,7 @@ sub read_conf {
                 push @tracker_code, $1;
                 next;
             }
-            if ($line =~ /^source\s+([A-Za-z][A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
+            if ($line =~ /^source\s+([A-Za-z][-A-Za-z0-9_]*)\s+(\S+)(\s+([a-z]+))?$/) {
                 # return 1 if $not_void_context->();
 
                 my ($name, $path, $repo_type)= ($1, $2, $4 || '');
@@ -368,7 +368,7 @@ sub read_conf {
 
             # Section declaration context
 
-            if ($line =~ /^section\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
+            if ($line =~ /^section\s+([A-Za-z][-A-Za-z0-9_]*)(?:\s+(.+))?$/) {
                 $ftype= undef;
                 $section= $1;
                 next if $section eq 'OMIT' || $section eq 'OTHER';
@@ -400,7 +400,7 @@ sub read_conf {
 
             # File type declaration context
 
-            if ($line =~ /^filetype\s+([A-Za-z][A-Za-z0-9_]*)(?:\s+(.+))?$/) {
+            if ($line =~ /^filetype\s+([A-Za-z][-A-Za-z0-9_]*)(?:\s+(.+))?$/) {
                 $section= undef;
                 $ftype= $1;
                 next if $ftypes{$ftype};    # Known bug: title ignored

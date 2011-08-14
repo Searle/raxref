@@ -121,7 +121,7 @@ jQuery(function($) {
 
         // BTW: This is the most packer-friendly way writing JS Classes I found:
         // Write everything as private code at make the assignments to the
-        // properties at the very end. Both yuicomressor and dojocompressor are
+        // properties at the very end. Both yuicompressor and dojocompressor are
         // very happy with this style. Other libraries mess this up terribly,
         // e.g. jQueryUI (especially the calendar is EVIL - could be half the
         // size) Dunno why...
@@ -503,7 +503,7 @@ jQuery(function($) {
                 }
                 var inx= result[i][0];
                 var token= result[i][1];
-                result[i]= "<b class='_" + quotemeta(token) + " link to-xref'>" + token.substr(0, inx)
+                result[i]= "<b class='_" + token.replace(/'/, '\\\'') + " link to-xref'>" + token.substr(0, inx)
                     + "<i>" + token.substr(inx, searchLength) + "</i>"
                     + token.substr(inx + searchLength) + "</b>";
             }
@@ -601,9 +601,9 @@ jQuery(function($) {
         })
     ;
 
-    var quotemeta= function(s) {
-        return s.replace(/([^-a-zA-Z0-9_])/g, '\\$1');
-    };
+    // var quotemeta= function(s) {
+    //     return s.replace(/([^-a-zA-Z0-9_])/g, '\\$1');
+    // };
 
     var markVisited= function($el) {
 
@@ -612,7 +612,8 @@ jQuery(function($) {
     };
 
     var elToken= function(el) {
-        var match= el.className.match(/\b_([A-Za-z_0-9]+)/);
+        // var match= el.className.match(/\b_([A-Za-z_0-9]+)/);
+        var match= el.className.match(/\b_(\S+)/);
         if (match) return match[1];
         return '.notfound';
     };
